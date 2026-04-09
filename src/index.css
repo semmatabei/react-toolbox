@@ -128,3 +128,9 @@
     @apply font-sans;
     }
 }
+
+@layer components {
+  [data-slot="input"] {
+    background-color: white !important;
+  }
+}

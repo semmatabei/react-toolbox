@@ -7,11 +7,13 @@ A browsable React pattern/component library (`react-toolbox`). The code **is** t
 ## Commands
 
 ```bash
-npm run dev          # Vite dev server (SPA only, no SSR)
-npm run build        # vite build only — NOT tsc first (see below)
-npm run typecheck    # tsc -b — run separately, after build generates routeTree.gen.ts
-npm run lint         # eslint
-npm run preview      # preview the dist build
+npm run dev           # Vite dev server (SPA only, no SSR)
+npm run build         # vite build only — NOT tsc first (see below)
+npm run typecheck     # tsc -b — run separately, after build generates routeTree.gen.ts
+npm run lint          # oxlint
+npm run format        # oxfmt src — format all files in src/
+npm run format:check  # check formatting without writing
+npm run preview       # preview the dist build
 ```
 
 ## Critical: build order

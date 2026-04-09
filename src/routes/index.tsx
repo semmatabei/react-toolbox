@@ -1,7 +1,7 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute("/")({
   beforeLoad: () => {
-    throw redirect({ to: '/patterns/$slug', params: { slug: 'form--basic' } })
+    throw redirect({ to: "/patterns/$slug", params: { slug: "form--basic" } });
   },
-})
+});

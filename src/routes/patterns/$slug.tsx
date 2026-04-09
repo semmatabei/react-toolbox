@@ -1,46 +1,46 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { PATTERNS } from '@/lib/patterns'
-import { lazy, Suspense } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
+import { createFileRoute } from "@tanstack/react-router";
+import { PATTERNS } from "@/lib/patterns";
+import { lazy, Suspense } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export const Route = createFileRoute('/patterns/$slug')({
+export const Route = createFileRoute("/patterns/$slug")({
   component: PatternPage,
-})
+});
 
 // Vite requires the glob to be statically analyzable — no variables in the path.
 // Import all pattern files eagerly as a map, then lazy-load via that map.
-const patternModules = import.meta.glob('../../patterns/**/*.tsx')
+const patternModules = import.meta.glob("../../patterns/**/*.tsx");
 
 function getPatternComponent(slug: string) {
-  const key = `../../patterns/${slug}.tsx`
-  const loader = patternModules[key]
-  if (!loader) return null
-  return lazy(loader as () => Promise<{ default: React.ComponentType }>)
+  const key = `../../patterns/${slug}.tsx`;
+  const loader = patternModules[key];
+  if (!loader) return null;
+  return lazy(loader as () => Promise<{ default: React.ComponentType }>);
 }
 
 function PatternPage() {
-  const { slug } = Route.useParams()
+  const { slug } = Route.useParams();
   // slug uses '--' instead of '/' to be URL-safe in a path segment
-  const patternSlug = slug.replace('--', '/')
-  const meta = PATTERNS.find((p) => p.slug === patternSlug)
+  const patternSlug = slug.replace("--", "/");
+  const meta = PATTERNS.find((p) => p.slug === patternSlug);
 
   if (!meta) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         Pattern not found: <code className="ml-2">{patternSlug}</code>
       </div>
-    )
+    );
   }
 
-  const PatternComponent = getPatternComponent(patternSlug)
+  const PatternComponent = getPatternComponent(patternSlug);
 
   if (!PatternComponent) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         No component file found for <code className="ml-2">{patternSlug}</code>
       </div>
-    )
+    );
   }
 
   return (
@@ -68,7 +68,7 @@ function PatternPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function PatternSkeleton() {
@@ -79,5 +79,5 @@ function PatternSkeleton() {
       <Skeleton className="h-10 w-full" />
       <Skeleton className="h-10 w-32" />
     </div>
-  )
+  );
 }

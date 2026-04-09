@@ -1,39 +1,45 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Loader2 } from 'lucide-react'
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
-interface Post { id: number; title: string; body: string }
+interface Post {
+  id: number;
+  title: string;
+  body: string;
+}
 
 async function fetchPage(page: number): Promise<{ posts: Post[]; nextPage: number | null }> {
-  await new Promise((r) => setTimeout(r, 600))
-  const res = await fetch(`https://jsonplaceholder.typicode.com/posts?_page=${page}&_limit=8`)
-  const posts: Post[] = await res.json()
-  return { posts, nextPage: page < 5 ? page + 1 : null }
+  await new Promise((r) => setTimeout(r, 600));
+  const res = await fetch(`https://jsonplaceholder.typicode.com/posts?_page=${page}&_limit=8`);
+  const posts: Post[] = await res.json();
+  return { posts, nextPage: page < 5 ? page + 1 : null };
 }
 
 export default function InfiniteScroll() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
-    queryKey: ['infinite-posts'],
+    queryKey: ["infinite-posts"],
     queryFn: ({ pageParam }) => fetchPage(pageParam as number),
     initialPageParam: 1,
     getNextPageParam: (last) => last.nextPage,
-  })
+  });
 
-  const sentinelRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
+    const el = sentinelRef.current;
+    if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && hasNextPage) fetchNextPage() },
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage) fetchNextPage();
+      },
       { threshold: 0.1 },
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [hasNextPage, fetchNextPage])
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, fetchNextPage]);
 
-  const posts = data?.pages.flatMap((p) => p.posts) ?? []
+  const posts = data?.pages.flatMap((p) => p.posts) ?? [];
 
   return (
     <div className="rounded-lg border border-border overflow-hidden">
@@ -61,11 +67,9 @@ export default function InfiniteScroll() {
         {/* Sentinel */}
         <div ref={sentinelRef} className="flex justify-center py-4">
           {isFetchingNextPage && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
-          {!hasNextPage && posts.length > 0 && (
-            <p className="text-xs text-muted-foreground">All posts loaded</p>
-          )}
+          {!hasNextPage && posts.length > 0 && <p className="text-xs text-muted-foreground">All posts loaded</p>}
         </div>
       </div>
     </div>
-  )
+  );
 }

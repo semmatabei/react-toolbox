@@ -1,73 +1,42 @@
-# React + TypeScript + Vite
+# react-toolbox
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A personal library of reusable React patterns and components. The code is the documentation — browse live previews in the web UI and copy-paste what you need into any React project.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Vite** + React + TypeScript
+- **TanStack Router** — file-based routing, typed URL params
+- **shadcn/ui** (radix-mira style, neutral) + **Tailwind CSS v4**
+- **Zustand** — state management patterns
+- **TanStack Query** — data fetching patterns
+- **TanStack Table** — table patterns
+- **react-hook-form** + **zod** — form patterns
 
-## React Compiler
+## Dev
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm run build
+npm run typecheck  # run after dev/build (needs generated routeTree.gen.ts)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Patterns
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Category | Patterns |
+|---|---|
+| Form | Basic form, Multi-step, Dynamic fields |
+| Modal | Basic dialog, Form dialog, Imperative modal |
+| Notification | Toast, Optimistic UI |
+| Query | Query states, Infinite scroll, Optimistic mutation |
+| Table | Basic (sortable), Server-side, Row selection |
+| State | Store slices, Persisted store |
+| Layout | Sidebar shell, Command palette |
+| Util | Error boundary, Debounced search |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Adding a pattern
+
+1. Create `src/patterns/<category>/<name>.tsx` — default export a React component
+2. Add an entry to `PATTERNS` in `src/lib/patterns.ts`
+
+The sidebar and routing update automatically.

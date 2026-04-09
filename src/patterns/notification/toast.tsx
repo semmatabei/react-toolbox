@@ -1,5 +1,5 @@
-import { Toaster, toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { Toaster, toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 export default function Toast() {
   return (
@@ -7,16 +7,16 @@ export default function Toast() {
       <p className="text-sm text-muted-foreground">Toast notifications via Sonner.</p>
 
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => toast.success('Saved successfully!')}>
+        <Button size="sm" onClick={() => toast.success("Saved successfully!")}>
           Success
         </Button>
-        <Button size="sm" variant="destructive" onClick={() => toast.error('Something went wrong.')}>
+        <Button size="sm" variant="destructive" onClick={() => toast.error("Something went wrong.")}>
           Error
         </Button>
-        <Button size="sm" variant="outline" onClick={() => toast.warning('Check your input.')}>
+        <Button size="sm" variant="outline" onClick={() => toast.warning("Check your input.")}>
           Warning
         </Button>
-        <Button size="sm" variant="secondary" onClick={() => toast.info('New update available.')}>
+        <Button size="sm" variant="secondary" onClick={() => toast.info("New update available.")}>
           Info
         </Button>
         <Button
@@ -24,9 +24,9 @@ export default function Toast() {
           variant="outline"
           onClick={() =>
             toast.promise(new Promise((r) => setTimeout(r, 1500)), {
-              loading: 'Saving…',
-              success: 'Saved!',
-              error: 'Failed.',
+              loading: "Saving…",
+              success: "Saved!",
+              error: "Failed.",
             })
           }
         >
@@ -36,5 +36,5 @@ export default function Toast() {
 
       <Toaster position="bottom-right" richColors />
     </div>
-  )
+  );
 }

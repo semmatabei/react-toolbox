@@ -1,59 +1,65 @@
-import { useForm, useFieldArray } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Plus, Trash2 } from 'lucide-react'
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Plus, Trash2 } from "lucide-react";
 
 const schema = z.object({
-  teamName: z.string().min(1, 'Required'),
-  members: z.array(
-    z.object({
-      name: z.string().min(1, 'Required'),
-      email: z.string().email('Invalid email'),
-    })
-  ).min(1, 'Add at least one member'),
-})
+  teamName: z.string().min(1, "Required"),
+  members: z
+    .array(
+      z.object({
+        name: z.string().min(1, "Required"),
+        email: z.string().email("Invalid email"),
+      }),
+    )
+    .min(1, "Add at least one member"),
+});
 
-type FormValues = z.infer<typeof schema>
+type FormValues = z.infer<typeof schema>;
 
 export default function DynamicFields() {
-  const { register, control, handleSubmit, formState: { errors, isSubmitSuccessful }, reset } = useForm<FormValues>({
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitSuccessful },
+    reset,
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { teamName: '', members: [{ name: '', email: '' }] },
-  })
+    defaultValues: { teamName: "", members: [{ name: "", email: "" }] },
+  });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'members' })
+  const { fields, append, remove } = useFieldArray({ control, name: "members" });
 
   function onSubmit(data: FormValues) {
-    console.log('Submitted:', data)
+    console.log("Submitted:", data);
   }
 
-  if (isSubmitSuccessful) return (
-    <div className="rounded-lg border border-border p-6 text-center space-y-3">
-      <p className="text-sm font-medium">Submitted! Check console.</p>
-      <Button variant="outline" size="sm" onClick={() => reset()}>Reset</Button>
-    </div>
-  )
+  if (isSubmitSuccessful)
+    return (
+      <div className="rounded-lg border border-border p-6 text-center space-y-3">
+        <p className="text-sm font-medium">Submitted! Check console.</p>
+        <Button variant="outline" size="sm" onClick={() => reset()}>
+          Reset
+        </Button>
+      </div>
+    );
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 rounded-lg border border-border p-6">
       <div className="space-y-1">
         <Label>Team Name</Label>
-        <Input placeholder="Engineering" {...register('teamName')} />
+        <Input placeholder="Engineering" {...register("teamName")} />
         {errors.teamName && <p className="text-xs text-destructive">{errors.teamName.message}</p>}
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Label>Members</Label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => append({ name: '', email: '' })}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => append({ name: "", email: "" })}>
             <Plus className="size-3 mr-1" /> Add
           </Button>
         </div>
@@ -68,14 +74,7 @@ export default function DynamicFields() {
               <Input placeholder="Email" {...register(`members.${i}.email`)} />
               {errors.members?.[i]?.email && <p className="text-xs text-destructive">{errors.members[i]?.email?.message}</p>}
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => remove(i)}
-              disabled={fields.length === 1}
-              className="mt-0.5"
-            >
+            <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} disabled={fields.length === 1} className="mt-0.5">
               <Trash2 className="size-3 text-destructive" />
             </Button>
           </div>
@@ -86,5 +85,5 @@ export default function DynamicFields() {
 
       <Button type="submit">Submit</Button>
     </form>
-  )
+  );
 }

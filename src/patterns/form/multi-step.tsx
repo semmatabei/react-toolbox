@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldGroup } from "@/components/ui/field";
-import { FieldController, defineFields } from "@/components/custom/form/field-controller";
+import { FieldController, FormController, defineFields } from "@/components/custom/form/field-controller";
 
 const step1Schema = z.object({
   name: z.string().min(2, "Required"),
@@ -31,18 +31,17 @@ type Step1 = z.infer<typeof step1Schema>;
 type Step2 = z.infer<typeof step2Schema>;
 type Step3 = z.infer<typeof step3Schema>;
 
-const step1Fields = defineFields<Step1>()({ name: { label: "Name", required: true }, email: { label: "Email", required: true } } satisfies Record<keyof Step1, object>);
+const step1Fields = defineFields<Step1>()({ name: { label: "Name", required: true }, email: { label: "Email", required: true } });
 
-const step2Fields = defineFields<Step2>()({ company: { label: "Company", required: true }, role: { label: "Role", required: true } } satisfies Record<keyof Step2, object>);
+const step2Fields = defineFields<Step2>()({ company: { label: "Company", required: true }, role: { label: "Role", required: true } });
 
-const step3Fields = defineFields<Step3>()({ password: { label: "Password", required: true }, confirm: { label: "Confirm Password", required: true } } satisfies Record<keyof Step3, object>);
+const step3Fields = defineFields<Step3>()({ password: { label: "Password", required: true }, confirm: { label: "Confirm Password", required: true } });
 
 const STEPS = ["Account", "Profile", "Security"];
 
 export default function MultiStepForm() {
   const [step, setStep] = useState(0);
   const [collected, setCollected] = useState<Partial<Step1 & Step2 & Step3>>({});
-  const [done, setDone] = useState(false);
 
   const form1 = useForm<Step1>({ resolver: zodResolver(step1Schema), defaultValues: collected });
   const form2 = useForm<Step2>({ resolver: zodResolver(step2Schema), defaultValues: collected });
@@ -59,26 +58,7 @@ export default function MultiStepForm() {
   async function submit(data: Step3) {
     await new Promise((r) => setTimeout(r, 600));
     console.log("Final:", { ...collected, ...data });
-    setDone(true);
   }
-
-  if (done)
-    return (
-      <div className="rounded-lg border border-border p-6 text-center space-y-3">
-        <p className="text-sm font-medium">All done! Check console for values.</p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setStep(0);
-            setCollected({});
-            setDone(false);
-          }}
-        >
-          Start over
-        </Button>
-      </div>
-    );
 
   return (
     <div className="rounded-lg border border-border overflow-hidden">
@@ -98,20 +78,20 @@ export default function MultiStepForm() {
 
       <div className="p-6">
         {step === 0 && (
-          <form onSubmit={form1.handleSubmit(next1)} className="space-y-4">
+          <FormController methods={form1} onSubmit={form1.handleSubmit(next1)} className="space-y-4">
             <FieldGroup>
-              <FieldController control={form1.control} {...step1Fields.name} render={({ field, id }) => <Input id={id} placeholder="John Doe" {...field} />} />
-              <FieldController control={form1.control} {...step1Fields.email} render={({ field, id }) => <Input id={id} type="email" placeholder="john@example.com" {...field} />} />
+              <FieldController {...step1Fields.name} render={({ field, id }) => <Input id={id} placeholder="John Doe" {...field} />} />
+              <FieldController {...step1Fields.email} render={({ field, id }) => <Input id={id} type="email" placeholder="john@example.com" {...field} />} />
             </FieldGroup>
             <Button type="submit">Next</Button>
-          </form>
+          </FormController>
         )}
 
         {step === 1 && (
-          <form onSubmit={form2.handleSubmit(next2)} className="space-y-4">
+          <FormController methods={form2} onSubmit={form2.handleSubmit(next2)} className="space-y-4">
             <FieldGroup>
-              <FieldController control={form2.control} {...step2Fields.company} render={({ field, id }) => <Input id={id} placeholder="Acme Inc." {...field} />} />
-              <FieldController control={form2.control} {...step2Fields.role} render={({ field, id }) => <Input id={id} placeholder="Engineer" {...field} />} />
+              <FieldController {...step2Fields.company} render={({ field, id }) => <Input id={id} placeholder="Acme Inc." {...field} />} />
+              <FieldController {...step2Fields.role} render={({ field, id }) => <Input id={id} placeholder="Engineer" {...field} />} />
             </FieldGroup>
             <div className="flex gap-2">
               <Button variant="outline" type="button" onClick={() => setStep(0)}>
@@ -119,14 +99,14 @@ export default function MultiStepForm() {
               </Button>
               <Button type="submit">Next</Button>
             </div>
-          </form>
+          </FormController>
         )}
 
         {step === 2 && (
-          <form onSubmit={form3.handleSubmit(submit)} className="space-y-4">
+          <FormController methods={form3} onSubmit={form3.handleSubmit(submit)} className="space-y-4">
             <FieldGroup>
-              <FieldController control={form3.control} {...step3Fields.password} render={({ field, id }) => <Input id={id} type="password" placeholder="••••••••" {...field} />} />
-              <FieldController control={form3.control} {...step3Fields.confirm} render={({ field, id }) => <Input id={id} type="password" placeholder="••••••••" {...field} />} />
+              <FieldController {...step3Fields.password} render={({ field, id }) => <Input id={id} type="password" placeholder="••••••••" {...field} />} />
+              <FieldController {...step3Fields.confirm} render={({ field, id }) => <Input id={id} type="password" placeholder="••••••••" {...field} />} />
             </FieldGroup>
             <div className="flex gap-2">
               <Button variant="outline" type="button" onClick={() => setStep(1)}>
@@ -136,7 +116,7 @@ export default function MultiStepForm() {
                 {form3.formState.isSubmitting ? "Submitting…" : "Finish"}
               </Button>
             </div>
-          </form>
+          </FormController>
         )}
       </div>
     </div>

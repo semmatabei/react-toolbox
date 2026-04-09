@@ -1,6 +1,27 @@
-import { useId } from "react";
-import { Controller, type ControllerFieldState, type ControllerProps, type ControllerRenderProps, type FieldPath, type FieldValues } from "react-hook-form";
+import { createContext, useContext, useId } from "react";
+import { Controller, FormProvider, type ControllerFieldState, type ControllerProps, type ControllerRenderProps, type FieldPath, type FieldValues, type UseFormReturn } from "react-hook-form";
 import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+
+export type Orientation = "vertical" | "horizontal" | "responsive";
+
+const OrientationContext = createContext<Orientation>("vertical");
+
+interface FormProps extends React.ComponentPropsWithoutRef<"form"> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  methods: UseFormReturn<any>;
+  orientation?: Orientation;
+}
+
+/** Wraps RHF `FormProvider` + orientation context so child `FieldController`s need no `control` or `orientation` props. */
+export function FormController({ methods, orientation = "vertical", children, ...props }: FormProps) {
+  return (
+    <FormProvider {...methods}>
+      <OrientationContext.Provider value={orientation}>
+        <form {...props}>{children}</form>
+      </OrientationContext.Provider>
+    </FormProvider>
+  );
+}
 
 type RenderArgs<TFieldValues extends FieldValues = FieldValues, TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>> = {
   /** Stable id — pass to the input: `id={id}` and `aria-invalid={fieldState.invalid}` */
@@ -16,7 +37,7 @@ export type FieldControllerProps<TFieldValues extends FieldValues = FieldValues,
   label?: React.ReactNode;
   description?: React.ReactNode;
   helper?: React.ReactNode;
-  orientation?: "vertical" | "horizontal" | "responsive";
+  orientation?: Orientation;
   /** Show a red asterisk after the label/title */
   required?: boolean;
   /** Show a muted "(Optional)" suffix after the label/title */
@@ -51,7 +72,8 @@ function OptionalMark() {
 }
 
 export function FieldController<TFieldValues extends FieldValues, TName extends FieldPath<TFieldValues>>(props: FieldControllerProps<TFieldValues, TName>) {
-  const { name, control, label, description, helper, orientation = "vertical", required, optional, className, labelClassName, inlineLabel, render, ...controllerProps } = props;
+  const ctxOrientation = useContext(OrientationContext);
+  const { name, control, label, description, helper, orientation = ctxOrientation, required, optional, className, labelClassName, inlineLabel, render, ...controllerProps } = props;
   const autoId = useId();
   const id = `field-${autoId}`;
   const isHorizontal = orientation === "horizontal" || orientation === "responsive";

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldGroup } from "@/components/ui/field";
-import { FieldController, defineFields } from "@/components/custom/form/field-controller";
+import { FieldController, FormController, defineFields } from "@/components/custom/form/field-controller";
 import { Plus, Trash2 } from "lucide-react";
 
 const schema = z.object({
@@ -22,15 +22,8 @@ const memberFields = {
 };
 
 export default function DynamicFields() {
-  const {
-    control,
-    handleSubmit,
-    formState: { isSubmitSuccessful },
-    reset,
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { teamName: "", members: [{ name: "", email: "" }] },
-  });
+  const methods = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const { control, handleSubmit } = methods;
 
   const { fields, append, remove } = useFieldArray({ control, name: "members" });
 
@@ -38,20 +31,10 @@ export default function DynamicFields() {
     console.log("Submitted:", data);
   }
 
-  if (isSubmitSuccessful)
-    return (
-      <div className="rounded-lg border border-border p-6 text-center space-y-3">
-        <p className="text-sm font-medium">Submitted! Check console.</p>
-        <Button variant="outline" size="sm" onClick={() => reset()}>
-          Reset
-        </Button>
-      </div>
-    );
-
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 rounded-lg border border-border p-6">
+    <FormController methods={methods} onSubmit={handleSubmit(onSubmit)} className="space-y-5 rounded-lg border border-border p-6">
       <FieldGroup>
-        <FieldController control={control} {...formFields.teamName} render={({ field, id }) => <Input id={id} placeholder="Engineering" {...field} />} />
+        <FieldController {...formFields.teamName} render={({ field, id }) => <Input id={id} placeholder="Engineering" {...field} />} />
       </FieldGroup>
 
       <div className="space-y-3">
@@ -64,8 +47,8 @@ export default function DynamicFields() {
 
         {fields.map((_, i) => (
           <div key={fields[i].id} className="flex gap-2 items-start">
-            <FieldController name={`members.${i}.name`} control={control} {...memberFields.name} className="flex-1" render={({ field, id }) => <Input id={id} placeholder="Name" {...field} />} />
-            <FieldController name={`members.${i}.email`} control={control} {...memberFields.email} className="flex-1" render={({ field, id }) => <Input id={id} placeholder="Email" {...field} />} />
+            <FieldController name={`members.${i}.name`} {...memberFields.name} className="flex-1" render={({ field, id }) => <Input id={id} placeholder="Name" {...field} />} />
+            <FieldController name={`members.${i}.email`} {...memberFields.email} className="flex-1" render={({ field, id }) => <Input id={id} placeholder="Email" {...field} />} />
             <Button type="button" variant="ghost" size="icon" onClick={() => remove(i)} disabled={fields.length === 1} className="mt-5">
               <Trash2 className="size-3 text-destructive" />
             </Button>
@@ -74,6 +57,6 @@ export default function DynamicFields() {
       </div>
 
       <Button type="submit">Submit</Button>
-    </form>
+    </FormController>
   );
 }

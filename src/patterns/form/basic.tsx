@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldGroup, FieldSet, FieldLegend, FieldDescription } from "@/components/ui/field";
-import { FieldController, defineFields } from "@/components/custom/form/field-controller";
+import { FieldController, FormController, defineFields } from "@/components/custom/form/field-controller";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const schema = z.object({
@@ -21,15 +21,15 @@ const fields = defineFields<FormValues>()({
   email: { label: "Email", required: true },
   age: { label: "Age", description: "Your age in years" },
   newsletter: { label: "Receive Newsletter", optional: true, inlineLabel: "Receive Newsletter" },
-} satisfies Record<keyof FormValues, object>);
+});
 
 function PersonalInfoForm({ orientation }: { orientation: "horizontal" | "vertical" }) {
+  const methods = useForm<FormValues>({ resolver: zodResolver(schema) });
   const {
-    control,
     handleSubmit,
     formState: { isSubmitting, isSubmitSuccessful },
     reset,
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = methods;
 
   async function onSubmit(data: FormValues) {
     await new Promise((r) => setTimeout(r, 800));
@@ -48,26 +48,21 @@ function PersonalInfoForm({ orientation }: { orientation: "horizontal" | "vertic
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 rounded-lg border border-border p-6">
+    <FormController methods={methods} orientation={orientation} onSubmit={handleSubmit(onSubmit)} className="space-y-4 rounded-lg border border-border p-6">
       <FieldSet>
         <FieldLegend>Personal Information</FieldLegend>
         <FieldDescription>Please fill out the form below with your personal information.</FieldDescription>
         <FieldGroup>
-          <FieldController control={control} {...fields.name} orientation={orientation} render={({ field, id }) => <Input id={id} placeholder="John Doe" {...field} />} />
-          <FieldController control={control} {...fields.email} orientation={orientation} render={({ field, id }) => <Input id={id} type="email" placeholder="john@example.com" {...field} />} />
-          <FieldController control={control} {...fields.age} orientation={orientation} render={({ field, id }) => <Input id={id} type="number" placeholder="25" {...field} />} />
-          <FieldController
-            control={control}
-            {...fields.newsletter}
-            orientation={orientation}
-            render={({ field, id }) => <Checkbox id={id} checked={field.value ?? false} onCheckedChange={field.onChange} />}
-          />
+          <FieldController {...fields.name} render={({ field, id }) => <Input id={id} placeholder="John Doe" {...field} />} />
+          <FieldController {...fields.email} render={({ field, id }) => <Input id={id} type="email" placeholder="john@example.com" {...field} />} />
+          <FieldController {...fields.age} render={({ field, id }) => <Input id={id} type="number" placeholder="25" {...field} />} />
+          <FieldController {...fields.newsletter} render={({ field, id }) => <Checkbox id={id} checked={field.value ?? false} onCheckedChange={field.onChange} />} />
         </FieldGroup>
       </FieldSet>
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Submitting…" : "Submit"}
       </Button>
-    </form>
+    </FormController>
   );
 }
 

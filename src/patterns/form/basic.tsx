@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 const schema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  age: z.coerce.number().min(18, 'Must be at least 18'),
+  age: z.string().refine((v) => !isNaN(Number(v)) && Number(v) >= 18, 'Must be at least 18'),
 })
 
 type FormValues = z.infer<typeof schema>

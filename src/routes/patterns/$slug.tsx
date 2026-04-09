@@ -8,6 +8,17 @@ export const Route = createFileRoute('/patterns/$slug')({
   component: PatternPage,
 })
 
+// Vite requires the glob to be statically analyzable — no variables in the path.
+// Import all pattern files eagerly as a map, then lazy-load via that map.
+const patternModules = import.meta.glob('../../patterns/**/*.tsx')
+
+function getPatternComponent(slug: string) {
+  const key = `../../patterns/${slug}.tsx`
+  const loader = patternModules[key]
+  if (!loader) return null
+  return lazy(loader as () => Promise<{ default: React.ComponentType }>)
+}
+
 function PatternPage() {
   const { slug } = Route.useParams()
   // slug uses '--' instead of '/' to be URL-safe in a path segment
@@ -22,10 +33,15 @@ function PatternPage() {
     )
   }
 
-  // Dynamically import the pattern component
-  const PatternComponent = lazy(
-    () => import(`../patterns/${patternSlug}.tsx`),
-  )
+  const PatternComponent = getPatternComponent(patternSlug)
+
+  if (!PatternComponent) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+        No component file found for <code className="ml-2">{patternSlug}</code>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">

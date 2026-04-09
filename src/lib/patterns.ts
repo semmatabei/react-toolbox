@@ -178,10 +178,6 @@ export const PATTERNS: PatternMeta[] = [
   },
 ]
 
-export function getPattern(slug: string) {
-  return PATTERNS.find((p) => p.slug === slug)
-}
-
 export function getPatternsByCategory(category: PatternCategory) {
   return PATTERNS.filter((p) => p.category === category)
 }

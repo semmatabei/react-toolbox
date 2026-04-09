@@ -1,0 +1,71 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e8]: react-toolbox
+    - navigation [ref=e12]:
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: Form
+        - link "Basic Form" [ref=e15] [cursor=pointer]:
+          - /url: /patterns/form--basic
+        - link "Multi-Step Form" [ref=e16] [cursor=pointer]:
+          - /url: /patterns/form--multi-step
+        - link "Dynamic Fields" [ref=e17] [cursor=pointer]:
+          - /url: /patterns/form--dynamic-fields
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: Modal
+        - link "Basic Dialog" [ref=e20] [cursor=pointer]:
+          - /url: /patterns/modal--basic
+        - link "Form Dialog" [ref=e21] [cursor=pointer]:
+          - /url: /patterns/modal--form-dialog
+        - link "Imperative Modal" [ref=e22] [cursor=pointer]:
+          - /url: /patterns/modal--imperative
+      - generic [ref=e23]:
+        - paragraph [ref=e24]: Notification
+        - link "Toast" [ref=e25] [cursor=pointer]:
+          - /url: /patterns/notification--toast
+        - link "Optimistic UI" [ref=e26] [cursor=pointer]:
+          - /url: /patterns/notification--optimistic
+      - generic [ref=e27]:
+        - paragraph [ref=e28]: Query
+        - link "Query States" [ref=e29] [cursor=pointer]:
+          - /url: /patterns/query--states
+        - link "Infinite Scroll" [ref=e30] [cursor=pointer]:
+          - /url: /patterns/query--infinite-scroll
+        - link "Optimistic Mutation" [ref=e31] [cursor=pointer]:
+          - /url: /patterns/query--optimistic-mutation
+      - generic [ref=e32]:
+        - paragraph [ref=e33]: Table
+        - link "Basic Table" [ref=e34] [cursor=pointer]:
+          - /url: /patterns/table--basic
+        - link "Server-Side Table" [ref=e35] [cursor=pointer]:
+          - /url: /patterns/table--server-side
+        - link "Row Selection" [ref=e36] [cursor=pointer]:
+          - /url: /patterns/table--row-selection
+      - generic [ref=e37]:
+        - paragraph [ref=e38]: State
+        - link "Store Slices" [ref=e39] [cursor=pointer]:
+          - /url: /patterns/state--slice
+        - link "Persisted Store" [ref=e40] [cursor=pointer]:
+          - /url: /patterns/state--persist
+      - generic [ref=e41]:
+        - paragraph [ref=e42]: Layout
+        - link "Sidebar Shell" [ref=e43] [cursor=pointer]:
+          - /url: /patterns/layout--sidebar
+        - link "Command Palette" [ref=e44] [cursor=pointer]:
+          - /url: /patterns/layout--command-palette
+      - generic [ref=e45]:
+        - paragraph [ref=e46]: Util
+        - link "Error Boundary" [ref=e47] [cursor=pointer]:
+          - /url: /patterns/util--error-boundary
+        - link "Debounced Search" [ref=e48] [cursor=pointer]:
+          - /url: /patterns/util--debounced-search
+  - main [ref=e49]:
+    - generic [ref=e51]:
+      - heading "Basic Form" [level=1] [ref=e52]
+      - generic [ref=e53]: —
+      - paragraph [ref=e54]: Controlled form with react-hook-form + zod schema validation.
+      - generic [ref=e55]:
+        - generic [ref=e56]: react-hook-form
+        - generic [ref=e57]: zod
+        - generic [ref=e58]: validation

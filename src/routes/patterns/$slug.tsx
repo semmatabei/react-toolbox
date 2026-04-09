@@ -61,7 +61,7 @@ function PatternPage() {
 
       {/* Preview */}
       <div className="flex-1 overflow-auto p-8 flex items-start justify-center">
-        <div className="w-full max-w-2xl">
+        <div className="w-full">
           <Suspense fallback={<PatternSkeleton />}>
             <PatternComponent />
           </Suspense>

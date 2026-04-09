@@ -4,7 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FieldGroup } from "@/components/ui/field";
+import { FieldController, defineFields } from "@/components/custom/form/field-controller";
 
 const step1Schema = z.object({
   name: z.string().min(2, "Required"),
@@ -29,6 +30,12 @@ const step3Schema = z
 type Step1 = z.infer<typeof step1Schema>;
 type Step2 = z.infer<typeof step2Schema>;
 type Step3 = z.infer<typeof step3Schema>;
+
+const step1Fields = defineFields<Step1>()({ name: { label: "Name", required: true }, email: { label: "Email", required: true } } satisfies Record<keyof Step1, object>);
+
+const step2Fields = defineFields<Step2>()({ company: { label: "Company", required: true }, role: { label: "Role", required: true } } satisfies Record<keyof Step2, object>);
+
+const step3Fields = defineFields<Step3>()({ password: { label: "Password", required: true }, confirm: { label: "Confirm Password", required: true } } satisfies Record<keyof Step3, object>);
 
 const STEPS = ["Account", "Profile", "Security"];
 
@@ -92,32 +99,20 @@ export default function MultiStepForm() {
       <div className="p-6">
         {step === 0 && (
           <form onSubmit={form1.handleSubmit(next1)} className="space-y-4">
-            <div className="space-y-1">
-              <Label>Name</Label>
-              <Input placeholder="John Doe" {...form1.register("name")} />
-              {form1.formState.errors.name && <p className="text-xs text-destructive">{form1.formState.errors.name.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label>Email</Label>
-              <Input type="email" placeholder="john@example.com" {...form1.register("email")} />
-              {form1.formState.errors.email && <p className="text-xs text-destructive">{form1.formState.errors.email.message}</p>}
-            </div>
+            <FieldGroup>
+              <FieldController control={form1.control} {...step1Fields.name} render={({ field, id }) => <Input id={id} placeholder="John Doe" {...field} />} />
+              <FieldController control={form1.control} {...step1Fields.email} render={({ field, id }) => <Input id={id} type="email" placeholder="john@example.com" {...field} />} />
+            </FieldGroup>
             <Button type="submit">Next</Button>
           </form>
         )}
 
         {step === 1 && (
           <form onSubmit={form2.handleSubmit(next2)} className="space-y-4">
-            <div className="space-y-1">
-              <Label>Company</Label>
-              <Input placeholder="Acme Inc." {...form2.register("company")} />
-              {form2.formState.errors.company && <p className="text-xs text-destructive">{form2.formState.errors.company.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label>Role</Label>
-              <Input placeholder="Engineer" {...form2.register("role")} />
-              {form2.formState.errors.role && <p className="text-xs text-destructive">{form2.formState.errors.role.message}</p>}
-            </div>
+            <FieldGroup>
+              <FieldController control={form2.control} {...step2Fields.company} render={({ field, id }) => <Input id={id} placeholder="Acme Inc." {...field} />} />
+              <FieldController control={form2.control} {...step2Fields.role} render={({ field, id }) => <Input id={id} placeholder="Engineer" {...field} />} />
+            </FieldGroup>
             <div className="flex gap-2">
               <Button variant="outline" type="button" onClick={() => setStep(0)}>
                 Back
@@ -129,16 +124,10 @@ export default function MultiStepForm() {
 
         {step === 2 && (
           <form onSubmit={form3.handleSubmit(submit)} className="space-y-4">
-            <div className="space-y-1">
-              <Label>Password</Label>
-              <Input type="password" placeholder="••••••••" {...form3.register("password")} />
-              {form3.formState.errors.password && <p className="text-xs text-destructive">{form3.formState.errors.password.message}</p>}
-            </div>
-            <div className="space-y-1">
-              <Label>Confirm Password</Label>
-              <Input type="password" placeholder="••••••••" {...form3.register("confirm")} />
-              {form3.formState.errors.confirm && <p className="text-xs text-destructive">{form3.formState.errors.confirm.message}</p>}
-            </div>
+            <FieldGroup>
+              <FieldController control={form3.control} {...step3Fields.password} render={({ field, id }) => <Input id={id} type="password" placeholder="••••••••" {...field} />} />
+              <FieldController control={form3.control} {...step3Fields.confirm} render={({ field, id }) => <Input id={id} type="password" placeholder="••••••••" {...field} />} />
+            </FieldGroup>
             <div className="flex gap-2">
               <Button variant="outline" type="button" onClick={() => setStep(1)}>
                 Back

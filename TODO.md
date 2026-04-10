@@ -1,4 +1,3 @@
-[] Editable Grid View
 [] Image Picker
 [] File Picker
 [] Rich Text/WYSIWYG Editor

@@ -34,6 +34,13 @@ export const PATTERNS: PatternMeta[] = [
     tags: ["react-hook-form", "wizard", "steps"],
     description: "Wizard-style step form with state preserved across steps.",
   },
+  {
+    slug: "form/autocomplete",
+    title: "Autocomplete Remote Fetch",
+    category: "form",
+    tags: ["combobox", "command", "autocomplete", "remote", "debounce"],
+    description: "Two approaches: Command+Popover and base-ui Combobox — both with debounced remote fetch and server-side filtering.",
+  },
   // Modal
   {
     slug: "modal/basic",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
@@ -51,21 +51,18 @@ export default function DebouncedSearch() {
     if (debounced) setFireCount((n) => n + 1);
   }, [debounced]);
 
-  const highlightMatch = useCallback(
-    (text: string) => {
-      if (!debounced) return text;
-      const idx = text.toLowerCase().indexOf(debounced.toLowerCase());
-      if (idx === -1) return text;
-      return (
-        <>
-          {text.slice(0, idx)}
-          <mark className="bg-yellow-200 dark:bg-yellow-800 rounded-sm">{text.slice(idx, idx + debounced.length)}</mark>
-          {text.slice(idx + debounced.length)}
-        </>
-      );
-    },
-    [debounced],
-  );
+  function highlightMatch(text: string) {
+    if (!debounced) return text;
+    const idx = text.toLowerCase().indexOf(debounced.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <mark className="bg-yellow-200 dark:bg-yellow-800 rounded-sm">{text.slice(idx, idx + debounced.length)}</mark>
+        {text.slice(idx + debounced.length)}
+      </>
+    );
+  }
 
   return (
     <div className="space-y-4 rounded-lg border border-border p-6">

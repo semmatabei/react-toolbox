@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
-import { SectionHeader } from "@/components/custom/section-header";
+import { SectionHeader } from "@/components/base/section-header";
 
 interface Props {
   children: ReactNode;

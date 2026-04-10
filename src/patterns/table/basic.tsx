@@ -60,7 +60,7 @@ export default function BasicTable() {
       <Table>
         <TableHeader className="bg-muted/50">
           {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id} className="border-b border-border hover:bg-transparent">
+            <TableRow key={hg.id}>
               {hg.headers.map((header) => (
                 <TableHead key={header.id} style={{ width: header.getSize() }}>
                   {header.isPlaceholder ? null : (

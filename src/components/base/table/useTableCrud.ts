@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { type FieldSchema } from "./crud-table";
+import { notification } from "@/components/base/notification";
+import { ShowConfirm } from "@/components/base/dialog/show-confirm";
+import { type FieldSchema } from "./types";
 
 interface UseTableCrudOptions<T, F> {
   fetchData: (params: { page: number; limit: number; sorting: any; filters: F[] }) => Promise<{ data: T[]; pagination: any }>;
@@ -132,7 +134,7 @@ export function useTableCrud<T = any, F = any>({
     const casted = castingValue(values as Record<string, any>, schema);
     const validationError = validateRequredFields(casted as Partial<T>);
     if (validationError) {
-      Notification.error(validationError);
+      notification.error(validationError);
       return;
     }
     let res = null;
@@ -147,9 +149,9 @@ export function useTableCrud<T = any, F = any>({
       }
       const { pagination, sorting } = tableState;
       doFetchData({ page: pagination.page, limit: pagination.limit, sorting, filters });
-      Notification.success(onSuccessMsg || "Item saved");
-    } catch (e) {
-      Notification.error(onErrorMsg || "Failed to save item");
+      notification.success(onSuccessMsg || "Item saved");
+    } catch {
+      notification.error(onErrorMsg || "Failed to save item");
     } finally {
       if (isNew) setCreating(false);
     }
@@ -168,7 +170,8 @@ export function useTableCrud<T = any, F = any>({
   // Initial fetch
   useEffect(() => {
     const { pagination, sorting } = tableState;
-    doFetchData({ page: pagination.page, limit: pagination.limit, sorting, filters });
+    doFetchData({ page: pagination.page, limit: pagination.limit, sorting, filters: defaultFilters });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handlers
@@ -191,15 +194,16 @@ export function useTableCrud<T = any, F = any>({
   };
   const handleDelete = async (id: any, item: T) => {
     if (!deleteItem) return;
-    const confirmed = await Confirm("Delete", confirmDeleteMessage(item) ?? "This action cannot be undone.", { mode: "destructive" });
+    const message = confirmDeleteMessage ? confirmDeleteMessage(item) : "This action cannot be undone.";
+    const confirmed = await ShowConfirm("Delete", message, { variant: "destructive" });
     if (!confirmed) return;
     try {
       await deleteItem(id);
-      Notification.success("Item deleted");
+      notification.success("Item deleted");
       const { pagination, sorting } = tableState;
       doFetchData({ page: pagination.page, limit: pagination.limit, sorting, filters });
-    } catch (e) {
-      Notification.error("Failed to delete item");
+    } catch {
+      notification.error("Failed to delete item");
     }
   };
 

@@ -101,6 +101,13 @@ export const PATTERNS: PatternMeta[] = [
     tags: ["tanstack-table", "checkbox", "bulk"],
     description: "Checkbox selection with bulk action toolbar.",
   },
+  {
+    slug: "table/crud",
+    title: "CRUD Table",
+    category: "table",
+    tags: ["tanstack-table", "crud", "edit", "delete", "filter", "pagination"],
+    description: "Inline editable table with schema-driven columns, filter bar, pagination, and create/delete via useTableCrud hook.",
+  },
   // State
   {
     slug: "state/zustand-features",

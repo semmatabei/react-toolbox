@@ -1,14 +1,13 @@
-import { Toaster } from "@/components/ui/sonner";
-import { toast } from "sonner";
+import { notification, NotificationProvider } from "@/components/base/notification";
 import { Button } from "@/components/ui/button";
-import { SectionHeader } from "@/components/custom/section-header";
+import { SectionHeader } from "@/components/base/section-header";
 
 export default function Toast() {
   function showWithAction() {
-    const toastId = toast("File moved to Trash", {
+    const toastId = notification.show("File moved to Trash", {
       action: {
         label: "Undo",
-        onClick: () => toast.success("Restored!", { id: toastId }),
+        onClick: () => notification.success("Restored!", { id: toastId }),
       },
     });
   }
@@ -20,23 +19,23 @@ export default function Toast() {
       <div className="space-y-3">
         <SectionHeader title="Variants" />
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => toast.success("Saved successfully!")}>
+          <Button size="sm" onClick={() => notification.success("Saved successfully!")}>
             Success
           </Button>
-          <Button size="sm" variant="destructive" onClick={() => toast.error("Something went wrong.")}>
+          <Button size="sm" variant="destructive" onClick={() => notification.error("Something went wrong.")}>
             Error
           </Button>
-          <Button size="sm" variant="outline" onClick={() => toast.warning("Check your input.")}>
+          <Button size="sm" variant="outline" onClick={() => notification.warning("Check your input.")}>
             Warning
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => toast.info("New update available.")}>
+          <Button size="sm" variant="secondary" onClick={() => notification.info("New update available.")}>
             Info
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={() =>
-              toast.promise(new Promise((r) => setTimeout(r, 1500)), {
+              notification.promise(new Promise((r) => setTimeout(r, 1500)), {
                 loading: "Saving…",
                 success: "Saved!",
                 error: "Failed.",
@@ -55,7 +54,7 @@ export default function Toast() {
         </Button>
       </div>
 
-      <Toaster position="bottom-right" />
+      <NotificationProvider position="bottom-right" />
     </div>
   );
 }

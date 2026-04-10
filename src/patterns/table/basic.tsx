@@ -2,6 +2,7 @@ import { useReactTable, getCoreRowModel, getSortedRowModel, flexRender, type Col
 import { useState } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 
 interface User {
   id: number;
@@ -56,12 +57,12 @@ export default function BasicTable() {
 
   return (
     <div className="rounded-lg border border-border overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 border-b border-border">
+      <Table>
+        <TableHeader className="bg-muted/50">
           {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id}>
+            <TableRow key={hg.id} className="border-b border-border hover:bg-transparent">
               {hg.headers.map((header) => (
-                <th key={header.id} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground" style={{ width: header.getSize() }}>
+                <TableHead key={header.id} style={{ width: header.getSize() }}>
                   {header.isPlaceholder ? null : (
                     <Button variant="ghost" size="sm" className="-ml-2 h-auto py-0 font-medium text-xs text-muted-foreground hover:text-foreground" onClick={header.column.getToggleSortingHandler()}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
@@ -74,23 +75,21 @@ export default function BasicTable() {
                       )}
                     </Button>
                   )}
-                </th>
+                </TableHead>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </thead>
-        <tbody className="divide-y divide-border">
+        </TableHeader>
+        <TableBody>
           {table.getRowModel().rows.map((row) => (
-            <tr key={row.id} className="hover:bg-muted/30 transition-colors">
+            <TableRow key={row.id}>
               {row.getVisibleCells().map((cell) => (
-                <td key={cell.id} className="px-4 py-2.5">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
+                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

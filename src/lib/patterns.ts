@@ -15,7 +15,6 @@ export const CATEGORIES: { value: PatternCategory; label: string }[] = [
   { value: "query", label: "Query" },
   { value: "table", label: "Table" },
   { value: "state", label: "State" },
-  { value: "layout", label: "Layout" },
   { value: "util", label: "Util" },
 ];
 
@@ -116,21 +115,6 @@ export const PATTERNS: PatternMeta[] = [
     category: "state",
     tags: ["zustand", "event-bus", "pub-sub"],
     description: "Typed pub/sub event bus using Zustand subscriptions — no store state consumed.",
-  },
-  // Layout
-  {
-    slug: "layout/sidebar",
-    title: "Sidebar Shell",
-    category: "layout",
-    tags: ["layout", "sidebar", "collapsible"],
-    description: "Collapsible sidebar + header shell layout.",
-  },
-  {
-    slug: "layout/command-palette",
-    title: "Command Palette",
-    category: "layout",
-    tags: ["cmdk", "search", "keyboard"],
-    description: "Cmd+K command palette for quick navigation.",
   },
   // Util
   {

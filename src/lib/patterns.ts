@@ -58,13 +58,6 @@ export const PATTERNS: PatternMeta[] = [
     tags: ["sonner", "toast"],
     description: "Toast notifications with success, error, warning variants.",
   },
-  {
-    slug: "notification/optimistic",
-    title: "Optimistic UI",
-    category: "notification",
-    tags: ["optimistic", "tanstack-query"],
-    description: "Show success immediately, rollback on error.",
-  },
   // Query
   {
     slug: "query/states",

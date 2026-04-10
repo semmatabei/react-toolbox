@@ -35,13 +35,6 @@ export const PATTERNS: PatternMeta[] = [
     tags: ["react-hook-form", "wizard", "steps"],
     description: "Wizard-style step form with state preserved across steps.",
   },
-  {
-    slug: "form/dynamic-fields",
-    title: "Dynamic Fields",
-    category: "form",
-    tags: ["react-hook-form", "useFieldArray"],
-    description: "Add/remove field arrays with useFieldArray.",
-  },
   // Modal
   {
     slug: "modal/basic",

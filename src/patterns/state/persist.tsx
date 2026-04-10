@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { SectionHeader } from "@/components/custom/section-header";
 
 interface Note {
   id: number;
@@ -47,9 +48,13 @@ export default function PersistedStore() {
 
   return (
     <div className="space-y-4 rounded-lg border border-border p-6">
-      <p className="text-sm text-muted-foreground">
-        Notes persist in <code className="text-xs bg-muted px-1 py-0.5 rounded">localStorage</code> via Zustand persist middleware. Refresh the page — they'll still be here.
-      </p>
+      <SectionHeader
+        description={
+          <>
+            Notes persist in <code className="text-xs bg-muted px-1 py-0.5 rounded">localStorage</code> via Zustand persist middleware. Refresh the page — they'll still be here.
+          </>
+        }
+      />
 
       <div className="flex gap-2">
         <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a note…" onKeyDown={(e) => e.key === "Enter" && handleAdd()} />

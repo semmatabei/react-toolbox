@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Button } from "@/components/ui/button";
+import { SectionHeader } from "@/components/custom/section-header";
 
 // ---------------------------------------------------------------------------
 // Slice pattern — each domain owns its slice, one combined store
@@ -73,7 +74,7 @@ function ThemeWidget() {
 export default function StoreSlices() {
   return (
     <div className="space-y-4 rounded-lg border border-border p-6">
-      <p className="text-sm text-muted-foreground">Two independent slices in one Zustand store. Each component subscribes only to its slice.</p>
+      <SectionHeader description="Two independent slices in one Zustand store. Each component subscribes only to its slice." />
       <div className="grid grid-cols-2 gap-3">
         <CounterWidget />
         <ThemeWidget />

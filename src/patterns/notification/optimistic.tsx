@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { SectionHeader } from "@/components/custom/section-header";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -32,7 +33,7 @@ export default function OptimisticUI() {
 
   return (
     <div className="space-y-4 rounded-lg border border-border p-6">
-      <p className="text-sm text-muted-foreground">Optimistic delete — 50% chance of server failure + rollback.</p>
+      <SectionHeader description="Optimistic delete — 50% chance of server failure + rollback." />
 
       <ul className="space-y-2">
         {INITIAL_ITEMS.map((name) => {

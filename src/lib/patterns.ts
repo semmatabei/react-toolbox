@@ -41,21 +41,14 @@ export const PATTERNS: PatternMeta[] = [
     title: "Basic Dialog",
     category: "modal",
     tags: ["radix", "dialog"],
-    description: "Simple confirm/cancel dialog via Radix Dialog.",
+    description: "Dialog with name and email inputs opened imperatively.",
   },
   {
-    slug: "modal/form-dialog",
-    title: "Form Dialog",
+    slug: "modal/show-confirm",
+    title: "Show Confirmation",
     category: "modal",
-    tags: ["radix", "dialog", "form"],
-    description: "Modal containing a full form; submit closes it.",
-  },
-  {
-    slug: "modal/imperative",
-    title: "Imperative Modal",
-    category: "modal",
-    tags: ["zustand", "imperative"],
-    description: "Open modals programmatically via Zustand — no JSX at callsite.",
+    tags: ["radix", "dialog", "confirm", "zustand", "imperative"],
+    description: "Awaitable confirm dialog opened imperatively — returns true/false without JSX at callsite.",
   },
   // Notification
   {

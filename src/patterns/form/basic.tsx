@@ -4,7 +4,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldGroup, FieldSet, FieldLegend, FieldDescription, FieldSeparator } from "@/components/ui/field";
-import { FieldController, FormController, defineFields } from "@/components/custom/form/field-controller";
+import { FieldController, FormController, defineFields } from "@/components/base/form/field-controller";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2 } from "lucide-react";
 

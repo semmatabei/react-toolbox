@@ -5,7 +5,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldGroup } from "@/components/ui/field";
-import { FieldController, FormController, defineFields } from "@/components/custom/form/field-controller";
+import { FieldController, FormController, defineFields } from "@/components/base/form/field-controller";
 
 const step1Schema = z.object({
   name: z.string().min(2, "Required"),

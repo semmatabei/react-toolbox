@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
+import { SectionHeader } from "@/components/custom/section-header";
 
 interface Props {
   children: ReactNode;
@@ -48,7 +49,7 @@ export default function ErrorBoundaryPattern() {
 
   return (
     <div className="space-y-4 rounded-lg border border-border p-6">
-      <p className="text-sm text-muted-foreground">Toggle the error to trigger the boundary. "Try again" resets it.</p>
+      <SectionHeader description='Toggle the error to trigger the boundary. "Try again" resets it.' />
       <Button size="sm" variant={throws ? "destructive" : "outline"} onClick={() => setThrows((v) => !v)}>
         {throws ? "Disable error" : "Trigger error"}
       </Button>

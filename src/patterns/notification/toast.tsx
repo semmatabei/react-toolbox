@@ -1,10 +1,11 @@
 import { Toaster, toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SectionHeader } from "@/components/custom/section-header";
 
 export default function Toast() {
   return (
     <div className="space-y-4 rounded-lg border border-border p-6">
-      <p className="text-sm text-muted-foreground">Toast notifications via Sonner.</p>
+      <SectionHeader description="Toast notifications via Sonner." />
 
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => toast.success("Saved successfully!")}>

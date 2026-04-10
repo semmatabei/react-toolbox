@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
 
-// Type for column configuration
 export interface ColumnConfig<T> {
   key: keyof T;
   header: string;
@@ -16,90 +15,75 @@ export interface ColumnConfig<T> {
   hide?: boolean;
 }
 
-// Server-side pagination info
 export interface PaginationInfo {
   page: number;
   limit: number;
   total: number;
 }
 
-// Table state configuration
-export interface TableState<T> {
-  selectedRows?: T[];
-  sorting?: SortingState;
-  pagination?: PaginationInfo;
-  isLoading?: boolean;
-}
-
-// Options configuration
-export interface TableOptions<T> {
-  // Event handlers
-  onSelectionChange?: (selectedRows: T[]) => void;
-  onSortingChange?: (sorting: SortingState) => void;
-  onPageChange?: (page: number) => void;
-
-  // UI options
-  emptyMessage?: string;
-}
-
-// Props for server-side operations
 export interface TableProps<T> {
   data: T[];
   columns: ColumnConfig<T>[];
 
-  // Current state
-  state?: TableState<T>;
+  // State
+  sorting?: SortingState;
+  pagination?: PaginationInfo;
+  isLoading?: boolean;
+  selectedRows?: T[];
 
-  // Options (handlers + UI)
-  options?: TableOptions<T>;
+  // Handlers
+  onSortingChange?: (sorting: SortingState) => void;
+  onPageChange?: (page: number) => void;
+  onSelectionChange?: (selectedRows: T[]) => void;
 
-  // UI props
+  // UI
+  emptyMessage?: string;
   className?: string;
-
-  // Explicitly enable selection (show checkbox column)
-  enableSelection?: boolean;
-
-  // Column pinning config (TanStack Table format)
   columnPinning?: ColumnPinningState;
 }
 
 function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
-  const { data, columns, state, options, className, enableSelection, columnPinning } = props;
+  const {
+    data,
+    columns,
+    sorting = [],
+    pagination,
+    isLoading = false,
+    selectedRows = [],
+    onSortingChange,
+    onPageChange,
+    onSelectionChange,
+    emptyMessage = "No results found.",
+    className,
+    columnPinning,
+  } = props;
+
   const resolvedPinning: ColumnPinningState = {
     left: columnPinning && Array.isArray(columnPinning.left) ? columnPinning.left : [],
-    right: columnPinning && Array.isArray(columnPinning.right) ? columnPinning.right : ["actions"],
+    right: columnPinning && Array.isArray(columnPinning.right) ? columnPinning.right : [],
   };
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const lastSelectedIndexRef = React.useRef<number | null>(null);
   const [columnSizing, setColumnSizing] = React.useState<Record<string, number>>({});
-
-  // Sync external selectedRows with TanStack Table rowSelection
-  React.useEffect(() => {
-    if (state?.selectedRows && state.selectedRows.length === 0 && Object.keys(rowSelection).length > 0) {
-      setRowSelection({});
-    }
-  }, [state?.selectedRows]);
-  React.useEffect(() => {
-    if (state?.selectedRows && state.selectedRows.length > 0) {
-      const newRowSelection: RowSelectionState = {};
-      state.selectedRows.forEach((row) => {
-        if (row.id) newRowSelection[row.id] = true;
-      });
-      setRowSelection(newRowSelection);
-    }
-  }, [state?.selectedRows]);
-  const getRowId = React.useCallback((row: T) => row.id?.toString?.() ?? "", []);
-  const selectionEnabled = !!enableSelection;
-  const sorting = state?.sorting || [];
-  const pagination = state?.pagination;
-  const isLoading = state?.isLoading || false;
-  const onSelectionChange = options?.onSelectionChange;
-  const onSortingChange = options?.onSortingChange;
-  const onPageChange = options?.onPageChange;
+  const selectionEnabled = !!onSelectionChange;
   const totalPages = pagination ? Math.ceil(pagination.total / pagination.limit) : 0;
-  const selectedRows = state?.selectedRows || [];
 
-  // Column definitions
+  // Sync external selectedRows → internal rowSelection
+  React.useEffect(() => {
+    if (!selectionEnabled) return;
+    if (selectedRows.length === 0) {
+      setRowSelection({});
+    } else {
+      const next: RowSelectionState = {};
+      selectedRows.forEach((row: T) => {
+        if (row.id) next[row.id] = true;
+      });
+      setRowSelection(next);
+    }
+  }, [selectedRows, selectionEnabled]);
+
+  const getRowId = React.useCallback((row: T) => row.id?.toString?.() ?? "", []);
+
   const tableColumns = useMemo<ColumnDef<T>[]>(() => {
     const cols: ColumnDef<T>[] = [];
     if (selectionEnabled) {
@@ -133,8 +117,14 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
         cell: ({ row, getValue }) => (col.cell ? col.cell(getValue(), row.original) : String(getValue() ?? "")),
         enableSorting: false,
         enableHiding: col.hide !== true,
+        meta: { hasExplicitWidth: !!col.width && col.width !== "shrink" },
       };
-      if (col.width) columnDef.size = parseInt(col.width);
+      if (col.width === "shrink") {
+        columnDef.size = 1;
+        columnDef.enableResizing = false;
+      } else if (col.width) {
+        columnDef.size = parseInt(col.width);
+      }
       cols.push(columnDef);
     });
     return cols;
@@ -147,7 +137,7 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
     getRowId,
     enableRowSelection: !!onSelectionChange,
     onRowSelectionChange: setRowSelection,
-    state: { ...(rowSelection ? { rowSelection } : {}), columnPinning: resolvedPinning, columnSizing },
+    state: { rowSelection, columnPinning: resolvedPinning, columnSizing },
     onColumnSizingChange: setColumnSizing,
     columnResizeMode: "onChange",
     manualSorting: true,
@@ -155,24 +145,23 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
     manualPagination: true,
   });
 
-  const emptyMessage = options?.emptyMessage || "No results found.";
-
   return (
     <div className={className}>
-      {/* Table */}
-      <div className="overflow-x-auto rounded-md border">
-        <Table className="min-w-full">
-          <TableHeader>
+      <div className="overflow-x-auto rounded-md ring-1 ring-border">
+        <Table className="w-full">
+          <TableHeader className="[&_tr]:border-0 [&_tr_th:last-child]:border-r-0">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   const isPinnedRight = header.column.getIsPinned?.() === "right";
                   const canResize = header.column.getCanResize?.();
+                  const isShrink = header.column.getSize() === 1;
+                  const hasExplicitWidth = (header.column.columnDef.meta as any)?.hasExplicitWidth;
                   return (
                     <TableHead
                       key={header.id}
-                      className={[isPinnedRight ? "sticky right-0 z-30 bg-background" : "", canResize ? "group relative" : "", "border border-border"].join(" ")}
-                      style={header.getSize ? { width: header.getSize() } : {}}
+                      className={`${isPinnedRight ? "sticky right-0 z-30 bg-background" : ""} ${canResize ? "group relative" : ""} ${isShrink ? "w-px whitespace-nowrap" : ""} border-b border-r border-border`}
+                      style={hasExplicitWidth ? { width: header.column.getSize() } : {}}
                     >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       {canResize && (
@@ -189,7 +178,7 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody className="[&_tr]:border-0 [&_tr:last-child_td]:border-b-0 [&_tr_td:last-child]:border-r-0">
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={tableColumns.length} className="h-24 text-center">
@@ -201,11 +190,13 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => {
                     const isPinnedRight = cell.column.getIsPinned?.() === "right";
+                    const isShrink = cell.column.getSize() === 1;
+                    const hasExplicitWidth = (cell.column.columnDef.meta as any)?.hasExplicitWidth;
                     return (
                       <TableCell
                         key={cell.id}
-                        className={["max-h-12.5 align-middle", isPinnedRight ? "sticky right-0 z-20 bg-muted/30" : "", "border border-border"].join(" ")}
-                        style={cell.column.getSize ? { minWidth: cell.column.getSize(), maxWidth: cell.column.getSize() } : {}}
+                        className={`max-h-12.5 align-middle ${isPinnedRight ? "sticky right-0 z-20 bg-muted/30" : ""} ${isShrink ? "w-px whitespace-nowrap" : ""} border-b border-r border-border`}
+                        style={hasExplicitWidth ? { width: `${cell.column.getSize()}px` } : {}}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
@@ -224,13 +215,10 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
         </Table>
       </div>
 
-      {/* Pagination Controls */}
       {(pagination && totalPages > 1) || (selectionEnabled && selectedRows.length > 0) ? (
         <div className="flex items-center justify-between space-x-2 py-4">
           <div className="flex items-center space-x-4">
-            {/* Selection info */}
             {selectionEnabled && selectedRows.length > 0 ? <div className="text-sm text-muted-foreground">{selectedRows.length} row(s) selected</div> : null}
-            {/* Pagination info */}
             {pagination ? (
               <div className="text-sm text-muted-foreground">
                 Showing {data.length > 0 ? (pagination.page - 1) * pagination.limit + 1 : 0} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} results
@@ -303,7 +291,7 @@ function SelectCell({
       aria-label="Select row"
       onPointerDown={(e) => e.preventDefault()}
       onClick={(e) => {
-        if (e.shiftKey && lastSelectedIndexRef && setRowSelection) {
+        if (e.shiftKey && lastSelectedIndexRef) {
           const allRows = table.getRowModel().rows;
           const last = lastSelectedIndexRef.current;
           if (last !== null && last !== rowIndex) {
@@ -321,7 +309,7 @@ function SelectCell({
         } else {
           row.toggleSelected();
         }
-        if (lastSelectedIndexRef) lastSelectedIndexRef.current = rowIndex;
+        lastSelectedIndexRef.current = rowIndex;
       }}
     />
   );

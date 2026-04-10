@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { notification } from "@/components/base/notification";
 import { ShowConfirm } from "@/components/base/dialog/show-confirm";
 import { type FieldSchema } from "./types";
+import { type EditContext } from "./column-factory";
 
 interface UseTableCrudOptions<T, F> {
-  fetchData: (params: { page: number; limit: number; sorting: any; filters: F[] }) => Promise<{ data: T[]; pagination: any }>;
+  fetchData: (params: { page: number; limit: number; sorting: { id: string; desc: boolean }[]; filters: F[] }) => Promise<{ data: T[]; pagination: any }>;
+  createItem?: (values: Partial<T>) => Promise<any>;
   updateItem?: (id: any, values: Partial<T>) => Promise<any>;
   deleteItem?: (id: any) => Promise<any>;
   defaultFilters?: F[];
@@ -70,6 +72,7 @@ function castingValue(values: Record<string, any>, schema?: FieldSchema[]): Reco
 
 export function useTableCrud<T = any, F = any>({
   fetchData,
+  createItem,
   updateItem,
   deleteItem,
   defaultFilters = [],
@@ -81,7 +84,7 @@ export function useTableCrud<T = any, F = any>({
   const [filters, setFilters] = useState<F[]>(defaultFilters);
   const [tableState, setTableState] = useState({
     selectedRows: [],
-    sorting: [],
+    sorting: [] as { id: string; desc: boolean }[],
     pagination: { ...defaultPagination, total: 0 },
     isLoading: false,
   });
@@ -158,7 +161,8 @@ export function useTableCrud<T = any, F = any>({
     return res;
   };
 
-  const saveNewRow = async (values: Partial<T>, createItem: (values: Partial<T>) => Promise<any>) => {
+  const saveNewRow = async (values: Partial<T>) => {
+    if (!createItem) return;
     return doSave({ values, apiFn: createItem, isNew: true, onSuccessMsg: "Item created", onErrorMsg: "Failed to create item" });
   };
 
@@ -180,7 +184,7 @@ export function useTableCrud<T = any, F = any>({
     setTableState((prev) => ({ ...prev, pagination: { ...prev.pagination, page: 1 } }));
     doFetchData({ page: 1, limit: tableState.pagination.limit, sorting: tableState.sorting, filters: filter });
   };
-  const handleSortingChange = (newSorting: any) => {
+  const handleSortingChange = (newSorting: { id: string; desc: boolean }[]) => {
     setTableState((prev) => ({ ...prev, sorting: newSorting, pagination: { ...prev.pagination, page: 1 } }));
     doFetchData({ page: 1, limit: tableState.pagination.limit, sorting: newSorting, filters });
   };
@@ -210,22 +214,40 @@ export function useTableCrud<T = any, F = any>({
   // Compose table data: if newRow exists, put it at the top
   const tableData = newRow ? [newRow, ...data] : data;
 
-  return {
-    data: tableData,
-    filters,
-    tableState,
+  const editContext: EditContext<T> = {
     editRowId,
     setEditRowId,
-    handleApplyFilter,
-    handleSortingChange,
-    handlePageChange,
-    handleSave,
-    handleDelete,
-    // new row logic
+    onSave: (id: any, values: Partial<T>) => {
+      if (id === "new") return saveNewRow(values);
+      return handleSave(id, values);
+    },
+    onDelete: handleDelete,
+    onCancel: (id: any) => {
+      if (id === "new") cancelNewRow();
+      else setEditRowId(null);
+    },
+  };
+
+  return {
+    // Spread directly into <DataTable>
+    tableProps: {
+      data: tableData,
+      sorting: tableState.sorting,
+      pagination: tableState.pagination,
+      isLoading: tableState.isLoading,
+      onSortingChange: handleSortingChange,
+      onPageChange: handlePageChange,
+    },
+    // Spread directly into <FilterPanel>
+    filterProps: {
+      handleApplyFilter,
+    },
+    // Pass to getColumns()
+    editContext,
+    // For conditional UI (emptyMessage text, add-button disabled state)
+    filters,
     newRow,
     addNewRow,
-    saveNewRow,
-    cancelNewRow,
     creating,
   };
 }

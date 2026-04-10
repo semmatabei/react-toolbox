@@ -95,18 +95,25 @@ export const PATTERNS: PatternMeta[] = [
     description: "Sorting and pagination sent to API via URL params.",
   },
   {
-    slug: "table/row-selection",
-    title: "Row Selection",
-    category: "table",
-    tags: ["tanstack-table", "checkbox", "bulk"],
-    description: "Checkbox selection with bulk action toolbar.",
-  },
-  {
     slug: "table/crud",
     title: "CRUD Table",
     category: "table",
     tags: ["tanstack-table", "crud", "edit", "delete", "filter", "pagination"],
     description: "Inline editable table with schema-driven columns, filter bar, pagination, and create/delete via useTableCrud hook.",
+  },
+  {
+    slug: "table/view-table",
+    title: "View Table",
+    category: "table",
+    tags: ["tanstack-table", "filter", "pagination", "sort", "read-only"],
+    description: "Read-only schema-driven table with filter bar, sorting, and pagination via useTableView hook.",
+  },
+  {
+    slug: "table/grid",
+    title: "Grid Table",
+    category: "table",
+    tags: ["glide-data-grid", "canvas", "spreadsheet", "sort", "filter", "group", "inline-edit"],
+    description: "Airtable-style spreadsheet with canvas rendering, inline editing, sort/filter/group, column management, and inspector panel.",
   },
   // State
   {

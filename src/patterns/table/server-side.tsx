@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Post {
@@ -10,24 +11,17 @@ interface Post {
   title: string;
   userId: number;
 }
-interface PageResult {
-  rows: Post[];
-  total: number;
-}
 
-async function fetchPosts(page: number, pageSize: number, sorting: SortingState): Promise<PageResult> {
+async function fetchPosts(page: number, pageSize: number, sorting: SortingState) {
   const sort = sorting[0];
-  const url = new URL("https://jsonplaceholder.typicode.com/posts");
-  url.searchParams.set("_page", String(page + 1));
-  url.searchParams.set("_limit", String(pageSize));
-  if (sort) {
-    url.searchParams.set("_sort", sort.id);
-    url.searchParams.set("_order", sort.desc ? "desc" : "asc");
-  }
-  const res = await fetch(url);
+  const params = new URLSearchParams({
+    _page: String(page + 1),
+    _limit: String(pageSize),
+    ...(sort && { _sort: sort.id, _order: sort.desc ? "desc" : "asc" }),
+  });
+  const res = await fetch(`https://jsonplaceholder.typicode.com/posts?${params}`);
   const total = Number(res.headers.get("x-total-count") ?? 100);
-  const rows: Post[] = await res.json();
-  return { rows, total };
+  return { rows: (await res.json()) as Post[], total };
 }
 
 const COLUMNS: ColumnDef<Post>[] = [
@@ -35,6 +29,12 @@ const COLUMNS: ColumnDef<Post>[] = [
   { accessorKey: "userId", header: "User" },
   { accessorKey: "title", header: "Title" },
 ];
+
+function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
+  if (sorted === "asc") return <ArrowUp className="ml-1 size-3" />;
+  if (sorted === "desc") return <ArrowDown className="ml-1 size-3" />;
+  return <ArrowUpDown className="ml-1 size-3 opacity-40" />;
+}
 
 export default function ServerSideTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -58,50 +58,43 @@ export default function ServerSideTable() {
   });
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden space-y-0">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 border-b border-border">
+    <div className="rounded-lg border border-border overflow-hidden">
+      <Table>
+        <TableHeader>
           {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id}>
+            <TableRow key={hg.id}>
               {hg.headers.map((header) => (
-                <th key={header.id} className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground" style={{ width: header.getSize() }}>
+                <TableHead key={header.id} style={{ width: header.getSize() }}>
                   <Button variant="ghost" size="sm" className="-ml-2 h-auto py-0 font-medium text-xs text-muted-foreground hover:text-foreground" onClick={header.column.getToggleSortingHandler()}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
-                    {header.column.getIsSorted() === "asc" ? (
-                      <ArrowUp className="ml-1 size-3" />
-                    ) : header.column.getIsSorted() === "desc" ? (
-                      <ArrowDown className="ml-1 size-3" />
-                    ) : (
-                      <ArrowUpDown className="ml-1 size-3 opacity-40" />
-                    )}
+                    <SortIcon sorted={header.column.getIsSorted()} />
                   </Button>
-                </th>
+                </TableHead>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </thead>
-        <tbody className="divide-y divide-border">
+        </TableHeader>
+        <TableBody>
           {isLoading
             ? Array.from({ length: pagination.pageSize }).map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={3} className="px-4 py-2.5">
+                <TableRow key={i}>
+                  <TableCell colSpan={3}>
                     <Skeleton className="h-4 w-full" />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             : table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-muted/30 transition-colors">
+                <TableRow key={row.id}>
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-2.5 max-w-xs truncate">
+                    <TableCell key={cell.id} className="max-w-xs truncate">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between px-4 py-2.5 border-t border-border text-xs text-muted-foreground">
         <span>
           Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}

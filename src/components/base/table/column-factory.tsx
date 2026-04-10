@@ -4,8 +4,17 @@ import { Button } from "@/components/ui/button";
 import { CellEditor } from "./cell-editor";
 import { type FieldSchema } from "./types";
 
+export interface EditContext<T> {
+  editRowId: any;
+  setEditRowId: (id: any) => void;
+  onSave: (id: any, values: Partial<T>) => void;
+  onDelete: (id: any, row: T) => void;
+  onCancel: (id: any) => void;
+}
+
 export function columnDefinitionCreator<T extends Record<string, any>>(schema: FieldSchema[], customRender: Partial<Record<string, (value: any, row: T) => React.ReactNode>> = {}) {
-  return function getColumns(editRowId: any, setEditRowId: (id: any) => void, onSave: (id: any, values: Partial<T>) => void, onDelete: (id: any, row: T) => void, onCancel: (id: any) => void) {
+  return function getColumns(context: EditContext<T>) {
+    const { editRowId, setEditRowId, onSave, onDelete, onCancel } = context;
     const editRowValueRef = useRef<Record<string, any>>({});
     const prevEditRowId = useRef<any>(null);
     if (editRowId !== prevEditRowId.current) {
@@ -23,13 +32,11 @@ export function columnDefinitionCreator<T extends Record<string, any>>(schema: F
 
         if (editRowId === row.id && field.inputType !== "readonly") {
           return (
-            <div className="relative z-10 -mx-2 -my-2.5 min-h-10.5 overflow-hidden bg-accent/40 focus-within:overflow-visible">
+            <div className="relative z-10 -mx-2 -my-2.5 flex min-h-10.5 items-center overflow-hidden bg-accent/40 focus-within:overflow-visible">
               <CellEditor field={field} value={value} row={row} editRowValueRef={editRowValueRef} />
             </div>
           );
         }
-
-        const viewValue = field.viewValue ? field.viewValue(value, row) : value;
 
         if (field.type === "boolean") {
           return (
@@ -39,6 +46,7 @@ export function columnDefinitionCreator<T extends Record<string, any>>(schema: F
           );
         }
 
+        const viewValue = field.viewValue ? field.viewValue(value, row) : value;
         return (
           <div title={typeof viewValue === "string" ? viewValue : undefined} className={`overflow-hidden text-ellipsis whitespace-nowrap ${field.type === "number" ? "text-right" : "text-left"}`}>
             {viewValue ?? ""}
@@ -51,7 +59,7 @@ export function columnDefinitionCreator<T extends Record<string, any>>(schema: F
       key: "actions" as keyof T,
       header: "",
       sortable: false,
-      width: "140",
+      width: "shrink",
       cell: (_v: any, row: T) =>
         editRowId === row.id ? (
           <div className="flex gap-1.5">

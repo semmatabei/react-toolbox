@@ -2,78 +2,14 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, FilterCreator, columnDefinitionCreator, useTableCrud, type FieldSchema, type FilterCondition } from "@/components/base/table/crud-table";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// In-memory "database" — stands in for a real API
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: "Admin" | "Engineer" | "Designer" | "Manager";
-  active: boolean;
-}
-
-let nextId = 6;
-const DB: User[] = [
-  { id: 1, name: "Alice Martin", email: "alice@acme.com", role: "Admin", active: true },
-  { id: 2, name: "Bob Chen", email: "bob@acme.com", role: "Engineer", active: true },
-  { id: 3, name: "Carol Smith", email: "carol@acme.com", role: "Designer", active: false },
-  { id: 4, name: "Dave Johnson", email: "dave@acme.com", role: "Engineer", active: true },
-  { id: 5, name: "Eve Williams", email: "eve@acme.com", role: "Manager", active: false },
-];
-
-function delay(ms = 300) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function apiFetch(params: { page: number; limit: number; filters: FilterCondition[] }) {
-  await delay();
-  let rows = [...DB];
-
-  for (const f of params.filters) {
-    if (!f.value && f.value !== false) continue;
-    rows = rows.filter((r) => {
-      const val = String((r as any)[f.field] ?? "").toLowerCase();
-      const q = String(f.value).toLowerCase();
-      if (f.operator === "contains") return val.includes(q);
-      if (f.operator === "equals") return val === q;
-      if (f.operator === "startsWith") return val.startsWith(q);
-      return true;
-    });
-  }
-
-  const total = rows.length;
-  const data = rows.slice((params.page - 1) * params.limit, params.page * params.limit);
-  return { data, pagination: { page: params.page, limit: params.limit, total } };
-}
-
-async function apiUpdate(id: number, values: Partial<User>) {
-  await delay();
-  const idx = DB.findIndex((r) => r.id === id);
-  if (idx !== -1) DB[idx] = { ...DB[idx], ...values, id };
-}
-
-async function apiCreate(values: Partial<User>) {
-  await delay();
-  const row = { id: nextId++, name: "", email: "", role: "Engineer" as const, active: true, ...values };
-  DB.push(row);
-  return row;
-}
-
-async function apiDelete(id: number) {
-  await delay();
-  const idx = DB.findIndex((r) => r.id === id);
-  if (idx !== -1) DB.splice(idx, 1);
-}
+import { type Employee, apiFetch, apiCreate, apiUpdate, apiDelete } from "@/components/base/table/mock-db";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Schema — drives columns, editors, and filter UI
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SCHEMA: FieldSchema[] = [
-  { id: "id", label: "ID", type: "number", inputType: "readonly", width: "60" },
+  { id: "id", label: "ID", type: "number", inputType: "readonly", width: "shrink" },
   { id: "name", label: "Name", type: "string", inputType: "text", sortable: true, filterable: true, required: true },
   { id: "email", label: "Email", type: "string", inputType: "text", filterable: true },
   {
@@ -96,7 +32,7 @@ const SCHEMA: FieldSchema[] = [
     type: "boolean",
     inputType: "checkbox",
     filterable: true,
-    width: "70",
+    width: "shrink",
     viewValue: (v) => (
       <Badge variant={v ? "default" : "secondary"} className="text-xs">
         {v ? "Yes" : "No"}
@@ -106,31 +42,16 @@ const SCHEMA: FieldSchema[] = [
 ];
 
 const FilterPanel = FilterCreator(SCHEMA);
-const getColumns = columnDefinitionCreator<User>(SCHEMA);
+const getColumns = columnDefinitionCreator<Employee>(SCHEMA);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pattern
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CrudTable() {
-  const {
-    data,
-    filters,
-    tableState,
-    editRowId,
-    setEditRowId,
-    handleApplyFilter,
-    handleSortingChange,
-    handlePageChange,
-    handleSave,
-    handleDelete,
-    newRow,
-    addNewRow,
-    saveNewRow,
-    cancelNewRow,
-    creating,
-  } = useTableCrud<User, FilterCondition>({
+  const { tableProps, filterProps, editContext, filters, newRow, addNewRow, creating } = useTableCrud<Employee, FilterCondition>({
     fetchData: apiFetch,
+    createItem: apiCreate,
     updateItem: apiUpdate,
     deleteItem: apiDelete,
     defaultPagination: { page: 1, limit: 4 },
@@ -138,41 +59,17 @@ export default function CrudTable() {
     schema: SCHEMA,
   });
 
-  const columns = getColumns(
-    editRowId,
-    setEditRowId,
-    (id, values) => {
-      if (id === "new") return saveNewRow(values, apiCreate);
-      return handleSave(id, values);
-    },
-    handleDelete,
-    (id) => {
-      if (id === "new") return cancelNewRow();
-      setEditRowId(null);
-    },
-  );
+  const columns = getColumns(editContext);
 
   return (
     <div className="space-y-3">
-      <FilterPanel handleApplyFilter={handleApplyFilter} />
+      <FilterPanel {...filterProps} />
 
       <Button size="sm" onClick={() => addNewRow({ role: "Engineer", active: true })} disabled={!!newRow || creating}>
         <Plus /> Add user
       </Button>
 
-      <DataTable
-        data={data}
-        columns={columns}
-        state={{
-          ...tableState,
-          sorting: tableState.sorting as any,
-        }}
-        options={{
-          onSortingChange: handleSortingChange,
-          onPageChange: handlePageChange,
-          emptyMessage: filters.some((f) => f.value) ? "No users match your filter." : "No users.",
-        }}
-      />
+      <DataTable columns={columns} {...tableProps} emptyMessage={filters.some((f) => f.value) ? "No users match your filter." : "No users."} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ interface Post {
 }
 
 async function fetchPosts(fail: boolean): Promise<Post[]> {
-  await new Promise((r) => setTimeout(r, 800));
+  await new Promise((r) => setTimeout(r, 1000));
   if (fail) throw new Error("Network error — could not fetch posts.");
   const res = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=5");
   return res.json() as Promise<Post[]>;
@@ -42,7 +43,6 @@ export default function QueryStates() {
         </Button>
       </div>
 
-      {/* Loading */}
       {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -54,7 +54,6 @@ export default function QueryStates() {
         </div>
       )}
 
-      {/* Error */}
       {isError && (
         <div className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-destructive">
           <AlertCircle className="size-4 mt-0.5 shrink-0" />
@@ -68,7 +67,6 @@ export default function QueryStates() {
         </div>
       )}
 
-      {/* Empty */}
       {!isLoading && !isError && displayed?.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
           <Inbox className="size-8" />
@@ -76,7 +74,6 @@ export default function QueryStates() {
         </div>
       )}
 
-      {/* Data */}
       {!isLoading && !isError && displayed && displayed.length > 0 && (
         <ul className="divide-y divide-border">
           {displayed.map((post) => (
@@ -90,6 +87,3 @@ export default function QueryStates() {
     </div>
   );
 }
-
-// useState needs to be imported
-import { useState } from "react";

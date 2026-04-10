@@ -9,7 +9,7 @@ interface Post {
   body: string;
 }
 
-async function fetchPage(page: number): Promise<{ posts: Post[]; nextPage: number | null }> {
+async function fetchPage(page: number) {
   await new Promise((r) => setTimeout(r, 600));
   const res = await fetch(`https://jsonplaceholder.typicode.com/posts?_page=${page}&_limit=8`);
   const posts: Post[] = await res.json();
@@ -30,8 +30,8 @@ export default function InfiniteScroll() {
     const el = sentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && hasNextPage) fetchNextPage();
+      ([e]) => {
+        if (e.isIntersecting && hasNextPage) fetchNextPage();
       },
       { threshold: 0.1 },
     );
@@ -64,7 +64,6 @@ export default function InfiniteScroll() {
           ))}
         </ul>
 
-        {/* Sentinel */}
         <div ref={sentinelRef} className="flex justify-center py-4">
           {isFetchingNextPage && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
           {!hasNextPage && posts.length > 0 && <p className="text-xs text-muted-foreground">All posts loaded</p>}

@@ -3,41 +3,30 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShowConfirm } from "@/components/base/dialog/show-confirm";
 import { DialogProvider } from "@/components/base/dialog/show-dialog";
+import { SectionHeader } from "@/components/base/section-header";
 
 type Result = { label: string; confirmed: boolean } | null;
 
 export default function ShowConfirmation() {
   const [result, setResult] = useState<Result>(null);
 
-  async function handleDelete() {
-    const confirmed = await ShowConfirm("Delete item?", "This action cannot be undone. The item will be permanently removed.", { variant: "destructive" });
-    setResult({ label: "Delete", confirmed });
-  }
-
-  async function handleArchive() {
-    const confirmed = await ShowConfirm("Archive item?", "The item will be moved to the archive and can be restored later.");
-    setResult({ label: "Archive", confirmed });
-  }
-
-  async function handlePublish() {
-    const confirmed = await ShowConfirm("Publish changes?", "This will make your changes visible to all users immediately.");
-    setResult({ label: "Publish", confirmed });
+  async function confirm(label: string, title: string, message: string, options?: Parameters<typeof ShowConfirm>[2]) {
+    const confirmed = await ShowConfirm(title, message, options);
+    setResult({ label, confirmed });
   }
 
   return (
     <div className="space-y-4 rounded-lg border border-border p-6">
-      <p className="text-sm text-muted-foreground">
-        <code className="text-xs bg-muted px-1 py-0.5 rounded">ShowConfirm</code> returns a promise — await the result without any Dialog JSX at the callsite.
-      </p>
+      <SectionHeader description="ShowConfirm returns a promise — await the result without any Dialog JSX at the callsite." />
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="destructive" onClick={handleDelete}>
+        <Button variant="destructive" onClick={() => confirm("Delete", "Delete item?", "This action cannot be undone. The item will be permanently removed.", { variant: "destructive" })}>
           Delete
         </Button>
-        <Button variant="outline" onClick={handleArchive}>
+        <Button variant="outline" onClick={() => confirm("Archive", "Archive item?", "The item will be moved to the archive and can be restored later.")}>
           Archive
         </Button>
-        <Button onClick={handlePublish}>Publish</Button>
+        <Button onClick={() => confirm("Publish", "Publish changes?", "This will make your changes visible to all users immediately.")}>Publish</Button>
       </div>
 
       {result && (

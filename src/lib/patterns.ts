@@ -104,18 +104,18 @@ export const PATTERNS: PatternMeta[] = [
   },
   // State
   {
-    slug: "state/slice",
-    title: "Store Slices",
+    slug: "state/zustand-features",
+    title: "Zustand Features",
     category: "state",
-    tags: ["zustand", "slice", "modular"],
-    description: "Modular store slices composed into one store.",
+    tags: ["zustand", "persist", "subscribe", "decoupling"],
+    description: "Advanced Zustand patterns: persistence, external logic, transient updates.",
   },
   {
-    slug: "state/persist",
-    title: "Persisted Store",
+    slug: "state/event-bus",
+    title: "Event Bus",
     category: "state",
-    tags: ["zustand", "persist", "localStorage"],
-    description: "localStorage persistence with zustand persist middleware.",
+    tags: ["zustand", "event-bus", "pub-sub"],
+    description: "Typed pub/sub event bus using Zustand subscriptions — no store state consumed.",
   },
   // Layout
   {

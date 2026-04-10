@@ -38,36 +38,15 @@ function UserInfoDialog({ open, setOpen }: { open: boolean; setOpen: (open: bool
 export default function BasicDialog() {
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border p-6">
-      <SectionHeader
-        title="Custom dialog"
-        description={
-          <>
-            Pass a render function to <code className="text-xs bg-muted px-1 py-0.5 rounded">ShowDialog</code> for full control over content.
-          </>
-        }
-      >
+      <SectionHeader title="Custom dialog" description="Pass a render function to ShowDialog for full control over content.">
         <Button onClick={() => ShowDialog(({ open, setOpen }) => <UserInfoDialog open={open} setOpen={setOpen} />)}>Edit User</Button>
       </SectionHeader>
 
       <div className="border-t border-border pt-4">
-        <SectionHeader
-          title="Simple dialog"
-          description={
-            <>
-              Pass title, body, and <code className="text-xs bg-muted px-1 py-0.5 rounded">onConfirm</code> — no JSX needed.
-            </>
-          }
-        >
+        <SectionHeader title="Simple dialog" description="Pass title, body, and onConfirm — no JSX needed.">
           <Button
             variant="outline"
-            onClick={() =>
-              ShowSimpleDialog({
-                title: "Save changes?",
-                body: "Your unsaved changes will be saved to the server.",
-                confirmLabel: "Save",
-                onConfirm: () => console.log("Saved!"),
-              })
-            }
+            onClick={() => ShowSimpleDialog({ title: "Save changes?", body: "Your unsaved changes will be saved to the server.", confirmLabel: "Save", onConfirm: () => console.log("Saved!") })}
           >
             Save Changes
           </Button>

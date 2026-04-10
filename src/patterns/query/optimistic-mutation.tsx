@@ -3,13 +3,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Plus, Trash2 } from "lucide-react";
+import { SectionHeader } from "@/components/base/section-header";
 
 interface Todo {
   id: number;
   text: string;
 }
 
-// Local in-memory "server"
 let nextId = 1;
 let serverTodos: Todo[] = [
   { id: nextId++, text: "Buy groceries" },
@@ -32,38 +32,40 @@ async function deleteTodo(id: number) {
   serverTodos = serverTodos.filter((t) => t.id !== id);
 }
 
+const KEY = ["todos"];
+
 export default function OptimisticMutation() {
   const qc = useQueryClient();
   const [text, setText] = useState("");
+  const { data: todos = [] } = useQuery({ queryKey: KEY, queryFn: getTodos });
 
-  const { data: todos = [] } = useQuery({ queryKey: ["todos"], queryFn: getTodos });
+  function optimistic<T>(updater: (old: Todo[]) => Todo[]) {
+    return {
+      onMutate: async (_: T) => {
+        await qc.cancelQueries({ queryKey: KEY });
+        const prev = qc.getQueryData<Todo[]>(KEY);
+        qc.setQueryData<Todo[]>(KEY, (old = []) => updater(old));
+        return { prev };
+      },
+      onError: (_: unknown, __: T, ctx?: { prev?: Todo[] }) => qc.setQueryData(KEY, ctx?.prev),
+      onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
+    };
+  }
 
   const add = useMutation({
     mutationFn: addTodo,
-    onMutate: async (newText) => {
-      await qc.cancelQueries({ queryKey: ["todos"] });
-      const prev = qc.getQueryData<Todo[]>(["todos"]);
-      // Optimistic insert
-      qc.setQueryData<Todo[]>(["todos"], (old = []) => [...old, { id: -Date.now(), text: newText }]);
-      return { prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      // Rollback
-      qc.setQueryData(["todos"], ctx?.prev);
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["todos"] }),
+    ...optimistic<string>((old) => [...old, { id: -Date.now(), text }]),
   });
 
   const remove = useMutation({
     mutationFn: deleteTodo,
+    ...optimistic<number>((old) => old.filter((t) => t.id !== -Date.now())),
     onMutate: async (id) => {
-      await qc.cancelQueries({ queryKey: ["todos"] });
-      const prev = qc.getQueryData<Todo[]>(["todos"]);
-      qc.setQueryData<Todo[]>(["todos"], (old = []) => old.filter((t) => t.id !== id));
+      await qc.cancelQueries({ queryKey: KEY });
+      const prev = qc.getQueryData<Todo[]>(KEY);
+      qc.setQueryData<Todo[]>(KEY, (old = []) => old.filter((t) => t.id !== id));
       return { prev };
     },
-    onError: (_err, _vars, ctx) => qc.setQueryData(["todos"], ctx?.prev),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["todos"] }),
   });
 
   function handleAdd() {
@@ -74,7 +76,7 @@ export default function OptimisticMutation() {
 
   return (
     <div className="space-y-4 rounded-lg border border-border p-6">
-      <p className="text-sm text-muted-foreground">Add has a 30% server failure rate to demo rollback.</p>
+      <SectionHeader description="Add has a 30% server failure rate to demo rollback." />
 
       <div className="flex gap-2">
         <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="New todo…" onKeyDown={(e) => e.key === "Enter" && handleAdd()} />

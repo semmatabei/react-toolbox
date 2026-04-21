@@ -1,6 +1,6 @@
 # react-toolbox
 
-A personal library of reusable React patterns and components. The code is the documentation — browse live previews in the web UI and copy-paste what you need into any React project.
+An opinionated implementation of reusable React patterns and components. The code is the documentation — browse live previews in the web UI and copy-paste what you need into any React project.
 
 ## Stack
 

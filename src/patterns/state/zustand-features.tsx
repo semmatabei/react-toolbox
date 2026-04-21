@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage, subscribeWithSelector } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -445,6 +446,73 @@ function TransientDemo() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 8. IMMER MIDDLEWARE (MUTABLE SYNTAX FOR NESTED STATE)
+//
+// Without immer, updating nested objects requires spreading every level:
+//   set((s) => ({ settings: { ...s.settings, theme: { ...s.settings.theme, color: "blue" } } }))
+//
+// immer middleware wraps set() so you can write direct mutations. Immer
+// intercepts them and produces a new immutable object via structural sharing —
+// no actual mutation occurs. The store stays immutable; the syntax is just clean.
+//
+// Best for: stores with 2+ levels of nesting, complex array operations,
+// or actions that touch multiple nested paths at once.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SettingsStore {
+  profile: {
+    name: string;
+    bio: string;
+  };
+  setName: (name: string) => void;
+  setBio: (bio: string) => void;
+}
+
+const useSettingsStore = create<SettingsStore>()(
+  immer((set) => ({
+    profile: {
+      name: "Alice",
+      bio: "Frontend engineer",
+    },
+    // Direct mutation — immer produces a new immutable object under the hood
+    setName: (name) =>
+      set((s) => {
+        s.profile.name = name;
+      }),
+    setBio: (bio) =>
+      set((s) => {
+        s.profile.bio = bio;
+      }),
+  })),
+);
+
+function ImmerDemo() {
+  const { profile, setName, setBio } = useSettingsStore();
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <p className="text-xs font-medium">Name</p>
+          <Input value={profile.name} onChange={(e) => setName(e.target.value)} className="h-7 text-xs" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium">Bio</p>
+          <Input value={profile.bio} onChange={(e) => setBio(e.target.value)} className="h-7 text-xs" />
+        </div>
+      </div>
+      <div className="rounded-md bg-muted/40 border border-border p-3">
+        <p className="text-xs font-medium mb-1">
+          Without immer, <code className="font-mono">togglePush</code> would be:
+        </p>
+        <p className="text-xs font-mono text-muted-foreground break-all">
+          {"set((s) => ({ settings: { ...s.settings, notifications: { ...s.settings.notifications, push: !s.settings.notifications.push } } }))"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Root
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -509,6 +577,13 @@ export default function ZustandCapabilities() {
         description="High-frequency state (mouse, scroll, animation) written to a DOM ref via subscribe(). The store holds the value but no React re-render ever fires — Reactive side re-renders on every move, Transient stays at 1."
       >
         <TransientDemo />
+      </Section>
+
+      <Section
+        title="8. Immer Middleware"
+        description="immer middleware lets you write direct mutations inside set(). Immer intercepts them and produces a new immutable object — no actual mutation occurs. Eliminates deeply nested spread syntax."
+      >
+        <ImmerDemo />
       </Section>
     </div>
   );

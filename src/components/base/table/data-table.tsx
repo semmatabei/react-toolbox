@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { flushSync } from "react-dom";
 import { type ColumnDef, type SortingState, flexRender, getCoreRowModel, useReactTable, type RowSelectionState, type ColumnPinningState } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -67,8 +68,15 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
   const selectionEnabled = !!onRowSelectionChange;
   const totalPages = pagination ? Math.ceil(pagination.total / pagination.limit) : 0;
   const selectedCount = Object.keys(rowSelection).length;
-
   const getRowId = (row: T) => row.id?.toString?.() ?? "";
+  const isSized = (col: { columnDef: { meta?: any }; id: string }) => (col.columnDef.meta as any)?.sized || columnSizing[col.id] !== undefined;
+  const makeResizeHandler = (header: any, sized: boolean) => (e: React.MouseEvent | React.TouchEvent) => {
+    if (!sized) {
+      const th = (e.currentTarget as HTMLElement).closest("th") as HTMLElement | null;
+      if (th) flushSync(() => setColumnSizing((prev) => ({ ...prev, [header.column.id]: th.clientWidth })));
+    }
+    header.getResizeHandler()?.(e);
+  };
 
   const tableColumns = useMemo<ColumnDef<T>[]>(() => {
     const cols: ColumnDef<T>[] = [];
@@ -81,6 +89,7 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
         enableHiding: false,
         enableResizing: false,
         size: 35,
+        meta: { sized: true },
       });
     }
     columns.forEach((col) => {
@@ -105,6 +114,7 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
         cell: ({ row, getValue }) => (col.cell ? col.cell(getValue(), row.original) : String(getValue() ?? "")),
         enableSorting: false,
         enableHiding: col.hide !== true,
+        meta: { sized: !!col.width },
       };
       if (col.width) {
         columnDef.size = parseInt(col.width);
@@ -121,7 +131,6 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
     getRowId,
     enableRowSelection: selectionEnabled,
     enableColumnResizing: true,
-    defaultColumn: { size: 200, minSize: 50 },
     onRowSelectionChange: (updater) => {
       const next = typeof updater === "function" ? updater(rowSelection) : updater;
       onRowSelectionChange?.(next);
@@ -137,24 +146,26 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
   return (
     <div className={className}>
       <div className="overflow-x-auto rounded-md ring-1 ring-border">
-        <Table style={{ width: table.getTotalSize(), minWidth: "100%", tableLayout: "fixed" }}>
+        <Table style={{ width: "100%", tableLayout: "fixed" }}>
           <TableHeader className="[&_tr]:border-0 [&_tr_th:last-child]:border-r-0">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
-                  const isPinnedRight = header.column.getIsPinned?.() === "right";
-                  const canResize = header.column.getCanResize?.();
+                  const isPinnedRight = header.column.getIsPinned() === "right";
+                  const canResize = header.column.getCanResize();
+                  const sized = isSized(header.column);
+                  const resizeHandler = canResize ? makeResizeHandler(header, sized) : undefined;
                   return (
                     <TableHead
                       key={header.id}
                       className={`${isPinnedRight ? "sticky right-0 z-30 bg-background" : ""} ${canResize ? "group relative" : ""} border-b border-r border-border`}
-                      style={{ width: header.column.getSize() }}
+                      style={sized ? { width: header.column.getSize() } : {}}
                     >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       {canResize && (
                         <div
-                          onMouseDown={header.getResizeHandler?.()}
-                          onTouchStart={header.getResizeHandler?.()}
+                          onMouseDown={resizeHandler}
+                          onTouchStart={resizeHandler}
                           className="absolute right-0 top-0 h-full w-2 cursor-col-resize select-none transition group-hover:bg-gray-200"
                           style={{ zIndex: 50 }}
                         />
@@ -176,12 +187,12 @@ function DataTable<T extends Record<string, any>>(props: TableProps<T>) {
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => {
-                    const isPinnedRight = cell.column.getIsPinned?.() === "right";
+                    const isPinnedRight = cell.column.getIsPinned() === "right";
                     return (
                       <TableCell
                         key={cell.id}
                         className={`max-h-12.5 align-middle ${isPinnedRight ? "sticky right-0 z-20 bg-muted/30" : ""} border-b border-r border-border`}
-                        style={{ width: `${cell.column.getSize()}px` }}
+                        style={isSized(cell.column) ? { width: `${cell.column.getSize()}px` } : {}}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>

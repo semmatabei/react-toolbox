@@ -11,7 +11,7 @@ export interface TableDef {
 export interface ColumnDef {
   id: string;
   name: string;
-  type: "text" | "number" | "select" | "date" | "email";
+  type: "text" | "number" | "select" | "date" | "email" | "autocomplete";
   width?: number;
   options?: { label: string; color: string }[];
 }
@@ -62,7 +62,7 @@ export const tables: TableDef[] = [
       { id: "department", name: "Department", type: "select", width: 140, options: departmentOptions },
       { id: "title", name: "Title", type: "text", width: 180 },
       { id: "role", name: "Role", type: "select", width: 120, options: roleOptions },
-      { id: "status", name: "Status", type: "select", width: 120, options: statusOptions },
+      { id: "status", name: "Status", type: "autocomplete", width: 120, options: statusOptions },
       { id: "tenure", name: "Tenure (yrs)", type: "number", width: 110 },
     ],
     rows: employeeDB.map((e) => ({ ...e, id: String(e.id) })),

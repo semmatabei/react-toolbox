@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxInput, ComboboxItem, ComboboxList } from "@/components/ui/combobox";
+import { Autocomplete } from "@/components/base/form/autocomplete";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckIcon, ChevronsUpDown } from "lucide-react";
@@ -139,60 +139,38 @@ function CommandPopoverDemo() {
 }
 
 // ---------------------------------------------------------------------------
-// Demo 2: base-ui Combobox
+// Demo 2: Autocomplete (base component)
 // ---------------------------------------------------------------------------
-// Uses base-ui's Combobox with `filter={null}` to disable client-side
-// filtering. `onInputValueChange` fires on every keystroke; we ignore
-// reason === "item-press" so selecting an item doesn't re-trigger a search.
 
-function ComboboxDemo() {
+function AutocompleteDemo() {
   const [selected, setSelected] = useState<string | null>(null);
   const { query, setQuery, results, isPending } = useRemoteSearch();
 
   const selectedPerson = DB.find((p) => p.id === selected) ?? null;
 
+  const items = results.map((p) => ({
+    value: p.id,
+    label: (
+      <>
+        <span className="font-medium">{p.name}</span>
+        <span className="ml-auto text-muted-foreground">{p.org}</span>
+      </>
+    ),
+  }));
+
   return (
     <div className="space-y-3">
-      <Combobox
+      <Autocomplete
         value={selected}
-        onValueChange={(v) => setSelected(v as string | null)}
-        // Disable client-side filtering — we serve pre-filtered results
-        filter={null}
-        onInputValueChange={(value, { reason }) => {
-          // Only fetch when the user is actively typing, not on selection fill
-          if (reason === "input-change" || reason === "input-paste") {
-            setQuery(value);
-          }
-          if (reason === "input-clear" || reason === "clear-press") {
-            setQuery("");
-          }
-        }}
-        itemToStringLabel={(id) => DB.find((p) => p.id === id)?.name ?? (id as string)}
-      >
-        <ComboboxInput className="w-72" placeholder="Search people…" showClear={!!selected} />
-        <ComboboxContent>
-          <ComboboxList>
-            {isPending ? (
-              <div className="space-y-1 p-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-7 w-full rounded-md" />
-                ))}
-              </div>
-            ) : query && results.length === 0 ? (
-              <ComboboxEmpty>No results for "{query}".</ComboboxEmpty>
-            ) : !query ? (
-              <ComboboxEmpty>Start typing to search.</ComboboxEmpty>
-            ) : (
-              results.map((p) => (
-                <ComboboxItem key={p.id} value={p.id}>
-                  <span className="font-medium">{p.name}</span>
-                  <span className="ml-auto text-muted-foreground">{p.org}</span>
-                </ComboboxItem>
-              ))
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
+        onValueChange={setSelected}
+        items={items}
+        isPending={isPending}
+        query={query}
+        onQueryChange={setQuery}
+        itemToStringLabel={(id) => DB.find((p) => p.id === id)?.name ?? id}
+        placeholder="Search people…"
+        className="w-72"
+      />
 
       {selectedPerson && (
         <p className="text-xs text-muted-foreground">
@@ -225,13 +203,13 @@ export default function AutocompleteRemoteFetch() {
 
       <section className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold">base-ui Combobox</h3>
+          <h3 className="text-sm font-semibold">base-ui Autocomplete</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            base-ui <code className="font-mono">Combobox</code> with <code className="font-mono">filter=&#123;null&#125;</code> — client-side filtering disabled. Input changes trigger a debounced
-            remote fetch; item selection fills the input via <code className="font-mono">itemToStringLabel</code>.
+            Reusable <code className="font-mono">Autocomplete</code> base component built on base-ui Combobox with <code className="font-mono">filter=&#123;null&#125;</code>. Accepts{" "}
+            <code className="font-mono">items</code>, <code className="font-mono">isPending</code>, and <code className="font-mono">onQueryChange</code> — caller owns the search state.
           </p>
         </div>
-        <ComboboxDemo />
+        <AutocompleteDemo />
       </section>
     </div>
   );

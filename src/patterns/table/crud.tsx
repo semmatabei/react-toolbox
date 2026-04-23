@@ -11,7 +11,7 @@ import { type Employee, apiFetch, apiCreate, apiUpdate, apiDelete } from "@/comp
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SCHEMA: FieldSchema[] = [
-  { id: "id", label: "ID", type: "number", inputType: "readonly", width: "shrink" },
+  { id: "id", label: "ID", type: "number", inputType: "readonly", width: "40" },
   { id: "name", label: "Name", type: "string", inputType: "text", sortable: true, filterable: true, required: true },
   { id: "email", label: "Email", type: "string", inputType: "text", filterable: true },
   {
@@ -34,7 +34,7 @@ const SCHEMA: FieldSchema[] = [
     type: "boolean",
     inputType: "checkbox",
     filterable: true,
-    width: "shrink",
+    width: "60",
     viewValue: (v) => (
       <Badge variant={v ? "default" : "secondary"} className="text-xs">
         {v ? "Yes" : "No"}

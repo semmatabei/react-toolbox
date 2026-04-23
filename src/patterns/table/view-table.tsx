@@ -13,7 +13,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> = 
 };
 
 const SCHEMA: FieldSchema[] = [
-  { id: "id", label: "ID", type: "number", inputType: "number", width: "shrink" },
+  { id: "id", label: "ID", type: "number", inputType: "number", width: "60" },
   { id: "name", label: "Name", type: "string", inputType: "text", sortable: true, filterable: true },
   {
     id: "department",
@@ -35,7 +35,7 @@ const SCHEMA: FieldSchema[] = [
     type: "string",
     inputType: "select",
     filterable: true,
-    width: "shrink",
+    width: "110",
     options: [
       { label: "Active", value: "Active" },
       { label: "On Leave", value: "On Leave" },
@@ -47,7 +47,7 @@ const SCHEMA: FieldSchema[] = [
       </Badge>
     ),
   },
-  { id: "tenure", label: "Tenure (yrs)", type: "number", inputType: "number", sortable: true, width: "shrink" },
+  { id: "tenure", label: "Tenure (yrs)", type: "number", inputType: "number", sortable: true, width: "100" },
 ];
 
 const FilterPanel = FilterCreator(SCHEMA);

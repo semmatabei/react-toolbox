@@ -59,7 +59,7 @@ export function columnDefinitionCreator<T extends Record<string, any>>(schema: F
       key: "actions" as keyof T,
       header: "",
       sortable: false,
-      width: "shrink",
+      width: "120",
       cell: (_v: any, row: T) =>
         editRowId === row.id ? (
           <div className="flex gap-1.5">

@@ -1,4 +1,4 @@
-import { notification, NotificationProvider } from "@/components/base/notification";
+import { notification, NotificationPortal } from "@/components/base/notification";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/base/section-header";
 
@@ -54,7 +54,7 @@ export default function Toast() {
         </Button>
       </div>
 
-      <NotificationProvider position="bottom-right" />
+      <NotificationPortal position="bottom-right" />
     </div>
   );
 }

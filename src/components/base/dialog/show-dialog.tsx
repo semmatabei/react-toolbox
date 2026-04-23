@@ -10,20 +10,20 @@ import { useDialogStore, type CompFuncType } from "./use-dialog";
 //   - Each call creates a new React root; the old one is never unmounted → memory leak
 //
 // Zustand approach (this implementation):
-//   - Dialog renders inside the app tree via <DialogProvider> mounted in the root layout
+//   - Dialog renders inside the app tree via <DialogPortal> mounted in the root layout
 //   - Full access to all React contexts and providers
 //   - callsite API is identical: ShowDialog(({ open, setOpen }) => <MyDialog ... />)
 //   - Single active dialog at a time; SwapDialog replaces it
 // ---------------------------------------------------------------------------
 
 /** Mount once in your root layout. Renders the active dialog inside the React tree. */
-export function DialogProvider() {
+export function DialogPortal() {
   const { childFunc, open, setOpen } = useDialogStore();
   if (!childFunc) return null;
   return <>{childFunc({ open, setOpen })}</>;
 }
 
-/** Open a dialog imperatively. The component renders inside the app tree via <DialogProvider>. */
+/** Open a dialog imperatively. The component renders inside the app tree via <DialogPortal>. */
 export function ShowDialog(childFunc: CompFuncType) {
   useDialogStore.getState().show(childFunc);
 }

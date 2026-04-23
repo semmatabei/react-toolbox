@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import type { ExternalToast } from "sonner";
 
-export { Toaster as NotificationProvider } from "@/components/ui/sonner";
+export { Toaster as NotificationPortal } from "@/components/ui/sonner";
 
 export const notification = {
   show: (message: string, options?: ExternalToast) => toast(message, options),

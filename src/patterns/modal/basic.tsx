@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShowDialog, DialogProvider } from "@/components/base/dialog/show-dialog";
+import { ShowDialog, DialogPortal } from "@/components/base/dialog/show-dialog";
 import { ShowSimpleDialog } from "@/components/base/dialog/simple-dialog";
 import { SectionHeader } from "@/components/base/section-header";
 
@@ -53,7 +53,7 @@ export default function BasicDialog() {
         </SectionHeader>
       </div>
 
-      <DialogProvider />
+      <DialogPortal />
     </div>
   );
 }

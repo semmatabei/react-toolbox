@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShowConfirm } from "@/components/base/dialog/show-confirm";
-import { DialogProvider } from "@/components/base/dialog/show-dialog";
+import { DialogPortal } from "@/components/base/dialog/show-dialog";
 import { SectionHeader } from "@/components/base/section-header";
 
 type Result = { label: string; confirmed: boolean } | null;
@@ -35,7 +35,7 @@ export default function ShowConfirmation() {
         </p>
       )}
 
-      <DialogProvider />
+      <DialogPortal />
     </div>
   );
 }

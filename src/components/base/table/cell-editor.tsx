@@ -15,7 +15,7 @@ export function CellEditor({ field, value, row, editRowValueRef }: { field: Fiel
 
   if (field.inputType === "checkbox") {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full items-center justify-center w-full">
         <Checkbox checked={!!cellValue} onCheckedChange={(checked) => handleChange(!!checked)} />
       </div>
     );

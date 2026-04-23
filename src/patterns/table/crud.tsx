@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { type RowSelectionState } from "@tanstack/react-table";
 import { DataTable, FilterCreator, columnDefinitionCreator, useTableCrud, type FieldSchema, type FilterCondition } from "@/components/base/table/crud-table";
 import { type Employee, apiFetch, apiCreate, apiUpdate, apiDelete } from "@/components/base/table/mock-db";
 
@@ -59,17 +61,31 @@ export default function CrudTable() {
     schema: SCHEMA,
   });
 
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const columns = getColumns(editContext);
 
   return (
     <div className="space-y-3">
       <FilterPanel {...filterProps} />
 
-      <Button size="sm" onClick={() => addNewRow({ role: "Engineer", active: true })} disabled={!!newRow || creating}>
-        <Plus /> Add user
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={() => addNewRow({ role: "Engineer", active: true })} disabled={!!newRow || creating}>
+          <Plus /> Add user
+        </Button>
+        {Object.keys(rowSelection).length > 0 && (
+          <Button size="sm" variant="destructive" onClick={() => setRowSelection({})}>
+            Clear {Object.keys(rowSelection).length} selected
+          </Button>
+        )}
+      </div>
 
-      <DataTable columns={columns} {...tableProps} emptyMessage={filters.some((f) => f.value) ? "No users match your filter." : "No users."} />
+      <DataTable
+        columns={columns}
+        {...tableProps}
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        emptyMessage={filters.some((f) => f.value) ? "No users match your filter." : "No users."}
+      />
     </div>
   );
 }

@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { type FieldSchema, type FilterCondition } from "./types";
+import { type FieldSchema } from "./types";
 import type { ColumnConfig } from "./data-table";
 
 export type { FieldSchema, FilterCondition } from "./types";
@@ -29,10 +29,7 @@ export { default as DataTable } from "./data-table";
  *
  * Optional `customRender` lets callers override individual cell renderers.
  */
-export function columnViewCreator<T extends Record<string, any>>(
-  schema: FieldSchema[],
-  customRender: Partial<Record<string, (value: any, row: T) => React.ReactNode>> = {},
-): ColumnConfig<T>[] {
+export function columnViewCreator<T extends Record<string, any>>(schema: FieldSchema[], customRender: Partial<Record<string, (value: any, row: T) => React.ReactNode>> = {}): ColumnConfig<T>[] {
   return schema.map((field) => ({
     key: field.id as keyof T,
     header: field.label,
@@ -78,11 +75,7 @@ interface UseTableViewOptions<T, F> {
  * Orchestration hook for the view table — handles data fetching,
  * sorting, pagination, and filters. No create / update / delete.
  */
-export function useTableView<T = any, F = any>({
-  fetchData,
-  defaultFilters = [],
-  defaultPagination = { page: 1, limit: 20 },
-}: UseTableViewOptions<T, F>) {
+export function useTableView<T = any, F = any>({ fetchData, defaultFilters = [], defaultPagination = { page: 1, limit: 20 } }: UseTableViewOptions<T, F>) {
   const [data, setData] = useState<T[]>([]);
   const [filters, setFilters] = useState<F[]>(defaultFilters);
   const [tableState, setTableState] = useState({

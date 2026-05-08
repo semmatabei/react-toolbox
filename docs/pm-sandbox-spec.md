@@ -4,6 +4,11 @@
 **Audience:** the engineering agent that will implement this end-to-end
 **Format:** opinionated. Make every choice unless the spec says otherwise.
 
+**Variants:** this is the **reference** stack (small SaaS / startup scale). Two siblings exist:
+
+- [`pm-sandbox-hobbyist.md`](./pm-sandbox-hobbyist.md) — $0/mo, Cloudflare free tier + opencode + Zen free model, single Oracle/Hetzner VPS.
+- [`pm-sandbox-enterprise-aws.md`](./pm-sandbox-enterprise-aws.md) — full AWS, Bedrock, EKS + Kata/Firecracker isolation, SSO, audit-ready.
+
 ---
 
 ## 1. Product summary

@@ -1,334 +1,381 @@
-# PM Sandbox — Enterprise / Full-AWS Variant
+# PM Sandbox — AWS Variant
 
-**Companion to** `pm-sandbox-spec.md` — same product, every component mapped onto AWS-native services with the controls a regulated enterprise actually demands: VPC isolation, KMS-managed keys, SAML SSO, in-region LLM, full audit trail, multi-AZ HA, and hard tenant isolation between sandboxes.
+**Companion to** `pm-sandbox-spec.md` — same product, mapped onto AWS-native services.
 
-**When to use this:** internal platform inside a company with compliance scope (SOC 2, HIPAA, ISO 27001, FedRAMP-adjacent), a security review board, an existing AWS landing zone, and an "all data stays in AWS" mandate.
+This doc has **two tiers**:
 
-**Indicative monthly run-rate:** **~$1,800–$3,500/mo baseline** (control plane + idle infra), plus **~$0.10–$0.40/sandbox-hour** of compute, plus **Bedrock token spend** (typically the largest line for active use). See §10.
+- **§1–§11 Lean tier** — target **~$100/mo** for a small team (~10 PMs × ~10 h/week each, ~430 sandbox-hours/month). Default for v1.
+- **§12 Production / compliance upgrade** — what to add on top when usage grows or you take on SOC 2 / HIPAA / regulated customers (~$1,800–$3,500/mo baseline).
+
+The lean tier still gives you **VM-level sandbox isolation, in-region LLM, KMS-encrypted data, IAM-only access, audit trail** — the things that make this "enterprise" rather than "hobbyist". It strips out everything that's *only* there for scale or compliance evidence.
 
 ---
 
-## 1. Component swap table
+## 1. The single decision that makes lean possible
 
-| Reference (`pm-sandbox-spec.md`) | Enterprise AWS swap | Why |
+**Use ECS Fargate as the sandbox runtime, not EKS + Kata.**
+
+Every Fargate task runs in its own Firecracker microVM with a separate guest kernel. That's the same isolation model as the heavyweight EKS+Kata design — AWS uses Firecracker to keep its own customers separated. By choosing Fargate, you inherit microVM isolation without paying for an EKS cluster ($73/mo flat), Karpenter, bare-metal nodes, the Kata operator, or AWS Network Firewall.
+
+The remaining lean choices follow from that:
+
+- No EKS → no kubectl, no Helm, no GitOps reconciler. ECS RunTask is the entire orchestrator.
+- No Network Firewall → use **Route 53 Resolver DNS Firewall** (~$0.50/mo per VPC + $0.40/M queries) for egress allowlist.
+- No NAT Gateway → run sandbox tasks in **public subnets with public IPs**, lock down inbound via security groups (only ALB SG can hit the dev port).
+- No Aurora → **DynamoDB on-demand** for everything. The data model fits trivially (small docs, key access patterns).
+- No ElastiCache → DynamoDB handles session state too.
+- No 24/7 Fargate API → **Lambda + API Gateway HTTP/WebSocket APIs**, scales to zero.
+- No CloudFront for the preview path → **single ALB** with a wildcard ACM cert and per-sandbox host-based listener rules.
+
+---
+
+## 2. Component map (vs the reference spec)
+
+| Reference (`pm-sandbox-spec.md`) | Lean AWS swap | Why |
 |---|---|---|
-| Next.js on Vercel | **CloudFront + S3** static export, OR **App Runner** for SSR | Stays inside AWS; CloudFront integrates with WAF |
-| Fastify API | **ECS Fargate** behind **internal ALB**, fronted by **CloudFront + WAF** | Fargate = no EC2 to patch; ALB does WS termination |
-| Browser ↔ API WebSocket | **API Gateway WebSocket APIs** (alt: ALB WS) | Native auth, throttling, CloudWatch metrics |
-| Postgres (Neon) | **Aurora Serverless v2 PostgreSQL** (multi-AZ, KMS-encrypted) | Auto-scales, point-in-time restore |
-| Upstash Redis | **ElastiCache Serverless for Valkey** | Same API as Redis, Amazon-supported |
-| Fly Machines (sandbox runtime) | **EKS + Karpenter** with **Kata Containers (Firecracker hypervisor)** for per-pod microVM isolation | True VM-level tenant isolation; AWS's own pattern |
-| Custom `agentd` | Same custom binary, packaged as container | Unchanged |
-| Anthropic Claude API | **Amazon Bedrock** — Claude (cross-region inference profile) | In-region, KMS, no third-party data egress |
-| Cloudflare Worker proxy + DO | **CloudFront + Lambda@Edge** for routing → **internal NLB → ALB** with host-based rules to sandbox pods | Wildcard routing, WAF, full VPC integration |
-| Wildcard cert (Cloudflare) | **ACM** wildcard cert (free, auto-rotating) | Pinned to CloudFront + ALB |
-| GitHub App | Same — but with **PrivateLink to GitHub Enterprise Cloud** for control-plane traffic | Keeps repo cloning off the public internet |
-| Auth.js + GitHub OAuth | **Cognito User Pool** federated to corporate IdP via SAML / OIDC (Okta, Azure AD, Ping) | SSO, MFA, JIT provisioning |
-| LLM API key | **No keys** — IAM role on the API task assumes a Bedrock-invoke role | Eliminates a class of leak |
-| Sentry / Datadog | **CloudWatch Logs + X-Ray** baseline; **Datadog/New Relic via PrivateLink** if mandated | No public egress |
-| GitHub Actions CI | **CodePipeline + CodeBuild** with **ECR** image scanning + **Inspector** | Compliance-friendly |
-| Container registry | **Amazon ECR** with image signing (Notary v2) and replication | Required for image provenance |
-| Secrets / tokens | **Secrets Manager** + **KMS CMKs** | Rotation, audit, customer-managed keys |
-| Observability | CloudWatch + X-Ray + **OpenSearch** for log analytics | Standard enterprise pattern |
-| Compliance / audit | **CloudTrail** (org-wide), **GuardDuty**, **Security Hub**, **Config**, **AWS Backup**, **Macie** for the egress S3 bucket | Evidence packages for auditors |
-| Network controls | **VPC** with private-only subnets for sandboxes, **AWS Network Firewall** with egress allowlist (npm, GitHub, Bedrock VPC endpoint, ECR), **VPC endpoints** for S3/ECR/Bedrock/Secrets Manager | No NAT egress for AWS service calls; explicit allowlist for npm |
+| Next.js on Vercel | **S3 + CloudFront** static export of the SPA | $1–2/mo at this scale |
+| Fastify API | **Lambda** (Node 22) behind **API Gateway HTTP API** | Scales to zero, pay per request |
+| Browser ↔ API WebSocket | **API Gateway WebSocket APIs** | Native auth, $1/M msgs, $0.25/M conn-mins |
+| Postgres + Drizzle | **DynamoDB on-demand** + electrodb (or single-table) | Free tier covers a small team |
+| Upstash Redis | **DynamoDB** with TTL on session items | One less service to run |
+| Fly Machines (sandbox) | **ECS Fargate (Graviton)** — one task per sandbox, microVM isolation built in | $0.02/h per sandbox |
+| Custom `agentd` | Same custom binary, packaged as Fargate-compatible image | Unchanged |
+| Anthropic Claude API | **Amazon Bedrock — Claude** (cross-region inference profile) | In-region, IAM-scoped, no third-party data egress |
+| Cloudflare Worker proxy + DO | **ALB** with wildcard cert + per-sandbox host-based listener rules | Native WS upgrade, no extra service |
+| Wildcard cert (Cloudflare) | **ACM** wildcard cert (free, auto-rotating) | Pinned to the ALB |
+| GitHub App | Same. Private key in **Secrets Manager** | $0.40/mo per secret |
+| Auth.js + GitHub OAuth | **Cognito User Pool** + GitHub OAuth IdP federation | Cognito free up to 50k MAU |
+| Sentry / Datadog | **CloudWatch Logs** with 14-day retention | $1–3/mo at this scale |
+| Container registry | **Amazon ECR** | $0.10/GB/mo for one image |
+| Secrets / tokens | **Secrets Manager** + **KMS (default AWS-managed key)** | Drop CMKs at lean tier |
+| Observability | CloudWatch metrics + Logs Insights | Built-in |
+| Compliance / audit | **CloudTrail management events** (free) | Add Config/GuardDuty/Security Hub at upgrade tier |
+| Network controls | **Public subnets** + tight security groups + **Route 53 Resolver DNS Firewall** for egress allowlist | $1–5/mo vs Network Firewall's $400 |
 
 ---
 
-## 2. Architecture
+## 3. Architecture
 
 ```mermaid
 flowchart LR
     subgraph Browser
-        UI[CloudFront + WAF<br/>S3 static / App Runner]
+        UI[CloudFront + S3<br/>SPA chat UI]
     end
 
-    subgraph "Control plane VPC"
-        APIGW[API Gateway<br/>WebSocket]
-        API[ECS Fargate API tasks<br/>behind internal ALB]
-        AUR[(Aurora Serverless v2<br/>Postgres)]
-        ECS[ElastiCache Serverless<br/>Valkey]
-        SM[Secrets Manager + KMS]
-        BED[Bedrock<br/>Claude via VPC endpoint]
-    end
+    subgraph "Single AWS account"
+        APIGW_HTTP[API Gateway<br/>HTTP API]
+        APIGW_WS[API Gateway<br/>WebSocket API]
+        LAM[Lambda<br/>API + agent loop + reaper]
+        DDB[(DynamoDB<br/>on-demand)]
+        SM[Secrets Manager]
+        BED[Bedrock<br/>Claude]
+        ALB[ALB<br/>wildcard ACM cert<br/>host-based rules]
+        COG[Cognito]
 
-    subgraph "Sandbox VPC<br/>(separate account)"
-        EKS[EKS cluster + Karpenter]
-        subgraph "Pod (Kata + Firecracker microVM)"
-            AGENTD[agentd]
-            DEV[dev server]
-            FS[(/workspace EBS)]
+        subgraph "Sandbox VPC (public subnets)"
+            T1[Fargate task<br/>microVM #1<br/>agentd + dev server]
+            T2[Fargate task<br/>microVM #2<br/>agentd + dev server]
+            DNSFW[Route 53 Resolver<br/>DNS Firewall<br/>npm/github only]
         end
-        NFW[Network Firewall<br/>egress allowlist]
-        VPCE[VPC endpoints<br/>ECR / S3 / Bedrock]
     end
 
-    subgraph "Edge"
-        CFE[CloudFront *.preview<br/>+ Lambda@Edge auth]
-        WAF[AWS WAF]
-    end
-
-    UI -- HTTPS --> APIGW
-    UI -- HTTPS --> CFE
-    APIGW --> API
-    API <--> AUR
-    API <--> ECS
-    API <--> SM
-    API -- IAM role --> BED
-    API -- EKS API --> EKS
-    EKS -- pull image --> VPCE
-    AGENTD -- WSS --> APIGW
-    DEV -. egress allowlist .-> NFW
-    NFW -. npm/GitHub only .-> Internet
-    CFE -- PrivateLink --> EKS
-    CFE --> WAF
+    UI -- HTTPS --> APIGW_HTTP
+    UI -- HTTPS --> ALB
+    UI -- WSS --> APIGW_WS
+    APIGW_HTTP --> LAM
+    APIGW_WS --> LAM
+    LAM <--> DDB
+    LAM <--> SM
+    LAM -- IAM role --> BED
+    LAM -- ECS RunTask --> T1
+    LAM -- ECS RunTask --> T2
+    T1 -- WSS outbound --> APIGW_WS
+    T2 -- WSS outbound --> APIGW_WS
+    ALB -- host=id1.preview --> T1
+    ALB -- host=id2.preview --> T2
+    T1 -. egress .-> DNSFW
+    T2 -. egress .-> DNSFW
+    DNSFW -. allowlisted .-> Internet[Internet]
 ```
 
-### Two-account topology (recommended)
-
-- **Account A — control plane.** API, DB, cache, Cognito, Bedrock invocations, Secrets Manager, all observability.
-- **Account B — sandbox runtime.** EKS, Karpenter, Network Firewall, sandbox EBS volumes, ECR replicas. No production data ever lands here; this account is the blast-radius boundary.
-
-Cross-account: API in A talks to EKS API in B via an IAM role (`AssumeRole` with a session duration of 15 min). CloudFront in the edge tier reaches sandbox pods in B via **VPC Lattice** or **PrivateLink** — never the public internet.
+Topology: **one VPC, one account.** The sandbox subnets are public (saves the NAT Gateway), but inbound is locked at the security-group level: dev-server ports accept traffic only from the ALB's security group. The agent's outbound WS to API Gateway and outbound `git`/`npm` traffic are unaffected.
 
 ---
 
-## 3. Sandbox isolation — the load-bearing decision
+## 4. Sandbox lifecycle
 
-Three options, ranked by isolation strength:
+```
+PM clicks "Start sandbox"
+  ↓
+Lambda receives POST /sandboxes
+  ↓
+Mints VM_JWT (HS256, secret in Secrets Manager)
+Mints GitHub installation token via @octokit/auth-app
+  ↓
+ecs.RunTask({
+  taskDefinition: "pm-sandbox:current",
+  launchType: "FARGATE",
+  platformVersion: "LATEST",
+  networkConfiguration: { awsvpcConfiguration: {
+    subnets: PUBLIC_SUBNETS,
+    securityGroups: [SANDBOX_SG],
+    assignPublicIp: "ENABLED",
+  }},
+  overrides: { containerOverrides: [{ name: "agentd", environment: [
+    { name: "VM_JWT", value: jwt },
+    { name: "GITHUB_TOKEN", value: ghToken },
+    { name: "REPO_URL", value: repoUrl },
+    { name: "REPO_BRANCH", value: branch },
+    { name: "CONTROL_WS_URL", value: WSS_URL },
+    { name: "SANDBOX_ID", value: id },
+  ]}]},
+  enableExecuteCommand: false,   // disable ECS Exec — agent is the only entry point
+})
+  ↓
+Lambda writes sandboxes/{id} to DynamoDB (status=provisioning)
+  ↓
+EventBridge ECS Task State Change → Lambda hook
+  ↓ (when task reaches RUNNING)
+Lambda reads task ENI → public IP
+Lambda calls elbv2.CreateTargetGroup + RegisterTargets({IP})
+       + CreateRule({host: "<id>.preview.app", target: TG})
+Lambda writes status=running, public_ip, target_group_arn to DynamoDB
+  ↓
+agentd inside task dials WSS_URL with Bearer VM_JWT
+  ↓ (PM can now chat and click Preview)
+```
 
-| Option | Isolation | Startup | Density | Recommended |
-|---|---|---|---|---|
-| Fargate task per sandbox | Process + cgroup, shared kernel within task | ~30 s | Low | ❌ — too slow |
-| EKS pod with **gVisor** (`runsc`) | Userspace syscall filter | ~3 s | High | ⚠️ — fine for trusted code |
-| **EKS pod with Kata Containers (Firecracker)** | **Per-pod microVM, separate guest kernel** | **~5 s** | Medium | ✅ **Default** |
-| Per-sandbox EC2 (Karpenter spins one node per pod) | Hardware VM | ~45 s | 1 pod/node | Only for special workloads |
+**Cold start:** Fargate Graviton task to RUNNING is ~25–35 s. Show a stepper UI: `provisioning → cloning repo → ready`. Drive the third step from agentd's first idle ping.
 
-Why Kata + Firecracker:
-
-- Each sandbox pod gets its own kernel — kernel exploits don't cross tenants.
-- AWS uses Firecracker for Lambda and Fargate. The pattern is battle-tested at AWS scale.
-- Boot under 5 s on `c7g.xlarge`-class nodes thanks to pre-booted Firecracker pools (configure Karpenter `nodepool` with `consolidationPolicy: WhenEmpty` and a `disruption.budget` to keep ~2 warm spare nodes).
-- Compatible with vanilla Kubernetes manifests — set `runtimeClassName: kata-fc` on the pod and you're done. No application-level code changes from the reference spec.
-
-Run two RuntimeClasses in the cluster: `runc` for the platform itself (cluster-autoscaler, Karpenter, observability agents) and `kata-fc` for sandbox pods only.
+**Reaper:** EventBridge Scheduler invokes a Lambda every 5 min. Query DynamoDB for `last_active_at < now() - 30 min`, then for each: `ecs.StopTask`, `elbv2.DeleteRule`, `elbv2.DeleteTargetGroup`, mark stopped. EventBridge ECS Task State Change → STOPPED triggers a final cleanup Lambda for crashed tasks.
 
 ---
 
-## 4. Network isolation
+## 5. Preview routing — single ALB, dynamic rules
 
 ```
-                       ┌────────────────────────────┐
-                       │ Sandbox VPC (account B)    │
-                       │                            │
-  Internet ── CloudFront ──── ALB (public)          │
-            (WAF, Shield)      │                    │
-                               │ via VPC Lattice    │
-                               ▼                    │
-                          ┌───────────┐             │
-                          │ EKS pods  │             │
-                          │ (kata-fc) │             │
-                          └─────┬─────┘             │
-                                │ all egress        │
-                                ▼                   │
-                          ┌──────────────┐          │
-                          │ AWS Network  │          │
-                          │ Firewall     │          │
-                          │ allowlist:   │          │
-                          │ - registry.* │          │
-                          │ - github.com │          │
-                          │ - npmjs.org  │          │
-                          │ - api.bedrock│          │
-                          └──────┬───────┘          │
-                                 │                  │
-                       ┌─────────┴────────────┐     │
-                       │ NAT (allowlisted)    │     │
-                       └──────────────────────┘     │
-                       ┌──────────────────────┐     │
-                       │ VPC endpoints (no NAT│     │
-                       │ for AWS services)    │     │
-                       │ - bedrock-runtime    │     │
-                       │ - ecr.api / .dkr     │     │
-                       │ - s3 (gateway)       │     │
-                       │ - secretsmanager     │     │
-                       └──────────────────────┘     │
-                       └────────────────────────────┘
+*.preview.example.com  →  Route 53 alias  →  ALB
+                                              │ HTTPS:443 (wildcard ACM cert)
+                                              │
+                                              ├─ rule: host=id1.preview.* → TG-id1 → 1.2.3.4:5173
+                                              ├─ rule: host=id2.preview.* → TG-id2 → 1.2.3.5:5173
+                                              └─ default rule: 404
 ```
 
-Default-deny egress in Network Firewall. Maintain the allowlist as code in Terraform; reviews go through PR. PMs can request domain additions, security signs them off in the diff.
+- **WebSockets** (Vite HMR) work natively through ALB — no extra config required, just keep `idle_timeout` ≥ 120 s.
+- **Auth gate**: ALB has an OIDC action attached to the wildcard listener that bounces unauthenticated requests through Cognito. The browser gets an ALB-managed cookie scoped to the sandbox host. Per-sandbox-user authorization happens in a tiny Lambda authorizer attached as an additional rule action — it reads `sandboxes/{id}` from DynamoDB and rejects if the requester isn't the owner. Cost: ~$0.20/M Lambda invocations.
+- **Limit**: ALB allows 100 listener rules per default (soft cap, raise to 500 via support). Each running sandbox = 1 rule + 1 target group. For >100 concurrent, shard across ALBs by id-hash.
 
 ---
 
-## 5. LLM via Bedrock
+## 6. Auth & secrets — lean
 
-- Use **Bedrock cross-region inference profiles** for Claude (`us.anthropic.claude-sonnet-4-20250514-v1:0` style) — gives capacity across multiple regions while keeping the request inside AWS.
-- VPC endpoint for `bedrock-runtime` in the control-plane VPC: API tasks call Bedrock without traversing the public internet.
-- IAM role for the API tasks scopes access to one foundation model and one `inferenceProfile`. Per-PM cost guardrails enforced via **Bedrock Application Inference Profiles** (one profile per cost center, tagged) so Cost Explorer shows attribution.
-- **Bedrock Guardrails** wrap every invocation: PII redaction inbound/outbound, prompt-injection detection, denied topics. Cheaper than building it yourself, gives auditors a checkbox.
-- **Bedrock model invocation logging** to S3 (KMS-encrypted, Object Lock for retention). Retention policy matches your audit requirements.
+| Boundary | Lean choice | Notes |
+|---|---|---|
+| Browser ↔ chat UI | Cognito hosted UI, GitHub OAuth IdP | Free tier covers 50k MAU |
+| Cognito → API Gateway | JWT authorizer (built-in) | No code |
+| Lambda → AWS services | IAM execution role | No keys anywhere |
+| Lambda → GitHub | App private key in **Secrets Manager**, mints `ghs_…` per call, in-process cache | $0.40/mo per secret |
+| Lambda ↔ agentd | `VM_JWT` HS256 with secret from Secrets Manager | Skip KMS asymmetric until upgrade tier |
+| Browser ↔ ALB preview | ALB OIDC authentication action → Cognito + per-rule Lambda authorizer for ownership check | One auth path, no signed-cookie service |
+
+Total Secrets Manager footprint: 3 secrets (GitHub App private key, VM_JWT signing secret, Bedrock guardrail config) = $1.20/mo.
+
+---
+
+## 7. LLM via Bedrock
+
+- Use **Bedrock cross-region inference profiles** for Claude (e.g. `us.anthropic.claude-sonnet-4-…`) — same price as the home region, much better capacity.
+- Lambda execution role allows `bedrock:InvokeModelWithResponseStream` on exactly that one inference profile ARN. Nothing else.
+- Skip Bedrock Guardrails at the lean tier (each invocation adds 200–600 ms and a small fee). Add at upgrade tier when you need PII-redaction evidence.
+- Skip Bedrock model-invocation logging at lean tier; rely on CloudWatch Logs from the Lambda. Add the S3 + Object Lock pipeline at upgrade tier.
 
 The agent loop logic from §6 of the reference spec is unchanged — only the SDK call swaps:
 
 ```ts
-// before: anthropic.messages.create(...)
-// after:
-const r = await bedrock.converseStream({
+// Lambda handler (sketch)
+import { BedrockRuntimeClient, ConverseStreamCommand } from "@aws-sdk/client-bedrock-runtime";
+const bedrock = new BedrockRuntimeClient({ region: "us-east-1" });
+const r = await bedrock.send(new ConverseStreamCommand({
   modelId: process.env.BEDROCK_INFERENCE_PROFILE_ARN,
   messages, system, toolConfig: { tools: TOOL_SCHEMAS },
-  guardrailConfig: { guardrailIdentifier: GR_ID, guardrailVersion: "DRAFT" },
-});
+}));
 ```
 
 ---
 
-## 6. Auth — SSO + IAM stitched together
+## 8. DynamoDB single-table design
 
-| Boundary | Mechanism | Notes |
-|---|---|---|
-| Browser ↔ Cognito | SAML / OIDC federation to corporate IdP | MFA enforced upstream by IdP |
-| Cognito → API | Cognito JWT in `Authorization: Bearer` | Verified at API Gateway with built-in authorizer |
-| API → AWS services (Bedrock, EKS, S3, Secrets Manager) | IAM role on the Fargate task definition | No long-lived AWS keys anywhere |
-| API → GitHub (App) | App private key in **Secrets Manager**, decrypted via KMS, mints `ghs_…` per call | Rotate App private key annually via IaC |
-| API ↔ agentd (in pod) | `VM_JWT` signed with **KMS asymmetric key** (RSASSA-PSS) | KMS verifies on agentd boot via signed JWT validator container; no shared HMAC secrets to leak |
-| Browser ↔ preview (`*.preview.app`) | Signed cookie issued by API after Cognito session check | Cookie scoped to `sandbox_id` and `user_id`; verified at Lambda@Edge before the request hits the ALB |
-
-The big win over the reference: **no application secret exists for VM_JWT signing**. KMS holds the private key, never releases it, and signs on demand. Compromising the API role gets you the ability to sign tokens for the duration of the credential — but not the key itself, and CloudTrail logs every signature.
-
----
-
-## 7. Data & secrets
-
-- **Aurora Serverless v2** (Postgres 16): min 0.5 ACU, max 4 ACU. Multi-AZ with 1 reader. Backups to S3 (KMS-encrypted) for 35 days. Cross-region replica if your DR RPO requires it.
-- **ElastiCache Serverless Valkey**: min 1 GB, encryption in transit + at rest with CMK.
-- **Secrets Manager** for: GitHub App private key, Bedrock model IDs, internal HMAC for legacy APIs. Rotation Lambdas where applicable.
-- **KMS**: one CMK per data class (`pm-sandbox/db`, `pm-sandbox/secrets`, `pm-sandbox/jwt-signing`, `pm-sandbox/audit-logs`). Rotation enabled on all.
-- **Sandbox EBS volumes**: gp3, 20 GB per pod, KMS-encrypted with `pm-sandbox/sandbox-fs` CMK. Deleted on pod termination (`reclaimPolicy: Delete`).
-
----
-
-## 8. Observability & audit (the auditor checklist)
-
-| Requirement | Service | Setup |
-|---|---|---|
-| Org-wide API audit | CloudTrail | Multi-region trail, S3 with Object Lock |
-| Network/host threats | GuardDuty | Enabled in both accounts |
-| Resource compliance | AWS Config | Conformance pack: NIST 800-53, CIS AWS Foundations |
-| Centralized findings | Security Hub | Aggregates GuardDuty + Inspector + Macie |
-| Image vulnerabilities | ECR Enhanced Scanning + Inspector | Block deploy on critical CVEs in CodePipeline |
-| Sensitive data scan | Macie | On the Bedrock invocation log bucket |
-| App logs | CloudWatch Logs → OpenSearch via subscription filter | 90-day hot, 1-year cold (S3 + Glacier) |
-| Distributed tracing | X-Ray | Auto-instrument Fargate API + agentd outbound |
-| LLM auditability | Bedrock model-invocation logging → S3 | Required for many AI risk policies |
-| Backup | AWS Backup | Aurora + EBS, daily, 35-day retention |
-| Access reviews | IAM Access Analyzer + IAM Identity Center | Quarterly access cert |
-
-Every PM action ends up in an `audit_log` row in Aurora **and** a CloudTrail event for the AWS-side action it triggered (e.g. `eks:CreateNodepool`, `bedrock:InvokeModel`). Auditors get one query: PM → user_id → events.
-
----
-
-## 9. CI/CD pipeline
+One table, on-demand billing. Keys mirror the reference spec's Postgres schema:
 
 ```
-PR opened → CodeBuild (test + lint + sbom + sign)
-          → ECR push (Account B replica via cross-account replication)
-          → Inspector scan
-          → if pass: CodeDeploy blue/green to Fargate API
-          → ArgoCD/Flux reconciles EKS manifests for the new sandbox image
+PK                    SK                          attrs
+USER#<uid>            META                        email, name, github_id, created_at
+USER#<uid>            INSTALL#<install_id>        account_login, repo_count
+SANDBOX#<sid>         META                        status, repo, branch, task_arn, public_ip,
+                                                  target_group_arn, rule_arn, last_active_at,
+                                                  expires_at, owner_uid (GSI1PK=USER#<uid>)
+SANDBOX#<sid>         CONV#<conv_id>              title, created_at
+SANDBOX#<sid>         MSG#<conv>#<ts>             role, content_ref (S3 if >100 KB)
+SANDBOX#<sid>         TOOLCALL#<msg>#<n>          name, args, result_ref, status, duration_ms
+SANDBOX#<sid>         FILECHANGE#<msg>#<path>     change_type, diff_ref
+AUDIT#<yyyymm>        EVT#<ts>#<uid>              action, payload_ref
 ```
 
-- ECR images signed with Notary v2; EKS admission controller (e.g. **Kyverno**) refuses unsigned images. Required for SLSA L3 evidence.
-- Helm charts, Terraform, RuntimeClasses, NetworkPolicies all live in a single GitOps repo. Production change = PR + 2 reviewers + Atlantis plan.
+GSIs:
+- `GSI1` = `byOwner` — `USER#<uid>` → list user's sandboxes.
+- `GSI2` = `byIdle` — sparse, populated only for `status=running`, sorted by `last_active_at`. The reaper queries this directly without a scan.
+
+Large blobs (full file contents, big tool results) live in S3 with the DynamoDB item holding only a `s3://...` reference. This is what keeps you under DynamoDB's 400 KB item cap and inside the free tier.
 
 ---
 
-## 10. Cost model — concrete
+## 9. Cost model — concrete <$100/mo
 
-Baseline (control plane running 24/7, no sandbox activity):
+**Assumptions:** 10 PMs, ~10 h/week each = ~430 sandbox-hours/month, ~600 chat turns/month total.
 
 | Item | Config | Monthly |
 |---|---|---|
-| Aurora Serverless v2 | 0.5 ACU avg, 100 GB, multi-AZ | ~$120 |
-| ElastiCache Serverless Valkey | 1 GB avg | ~$80 |
-| Fargate API (2 tasks × 1 vCPU/2 GB, 24/7) | | ~$70 |
-| API Gateway WebSocket | 10M msgs, 100 GB | ~$50 |
-| ALB (2 internal + 1 public) | | ~$60 |
-| CloudFront + WAF | 50 GB egress, 5M req | ~$40 |
-| Route 53 + ACM | 1 zone, 1 wildcard | ~$5 |
-| EKS control plane | 1 cluster | $73 |
-| Karpenter idle (2 warm `c7g.large` spares) | | ~$100 |
-| Network Firewall | 1 endpoint, low TPS | ~$400 |
-| NAT Gateway (one AZ for non-allowlisted egress) | | ~$35 + per-GB |
-| VPC endpoints (Bedrock, ECR, S3, Secrets, KMS) | ~6 endpoints × 2 AZ | ~$90 |
-| KMS CMKs (4) + key usage | | ~$5 |
-| GuardDuty + Config + Security Hub + Inspector | small org | ~$200 |
-| CloudWatch + X-Ray + OpenSearch (small) | | ~$200 |
-| AWS Backup | 100 GB | ~$10 |
-| Cognito | <50k MAU | $0 (free tier) |
-| **Baseline subtotal** | | **~$1,540/mo** |
+| Fargate (Graviton) sandbox compute | 0.5 vCPU + 1 GB × 430 h | **$8.60** |
+| Fargate ephemeral storage | 20 GB included free | $0 |
+| ALB | always-on, ~5 LCU avg | **$22** |
+| ALB extra LCU (low) | | ~$3 |
+| ACM wildcard cert | | $0 |
+| Route 53 hosted zone + queries | 1 zone, ~500k queries | ~$1 |
+| API Gateway HTTP API | ~50k requests | <$1 |
+| API Gateway WebSocket | ~600 conn-hrs, 100k msgs | ~$1 |
+| Lambda (API + reaper + authorizer) | ~200k GB-s | <$2 |
+| DynamoDB on-demand | ~50k WCUs, 200k RCUs | ~$1 (mostly free tier) |
+| S3 (blob refs) | ~5 GB | <$1 |
+| CloudFront + S3 SPA | ~5 GB egress, 100k req | ~$1 |
+| Cognito | <50k MAU | $0 |
+| Bedrock Claude (Sonnet) | ~600 turns × ~6k tokens/turn @ $3/M in + $15/M out | **~$30** |
+| Secrets Manager | 3 secrets | ~$1.20 |
+| KMS (AWS-managed keys) | | $0 |
+| ECR storage | 1 image, ~250 MB | <$0.10 |
+| CloudWatch Logs | ~5 GB ingest, 14-day retention | ~$3 |
+| CloudTrail management events | | $0 |
+| Route 53 Resolver DNS Firewall | 1 rule group, ~1M queries | ~$1 |
+| Public IPv4 on Fargate tasks | $0.005/h × 430 h | ~$2.15 |
+| Data transfer out (preview HMR + chat) | ~10 GB | ~$0.90 |
+| **Total** | | **~$78/mo** |
 
-Per active sandbox-hour:
-
-| Item | Cost |
-|---|---|
-| Karpenter-provisioned `c7g.xlarge` shared by ~6 sandbox pods | ~$0.07/h ÷ 6 = ~$0.012/sandbox-h |
-| 20 GB gp3 EBS for `/workspace` | ~$0.0028/h |
-| Cross-AZ traffic (small) | ~$0.005/h |
-| ECR pull (cached) | negligible |
-| CloudWatch logs ingest | ~$0.01/h |
-| **Per sandbox-hour subtotal** | **~$0.03–$0.05** |
-
-LLM (Bedrock Claude Sonnet 4) per active turn: ~$0.05–$0.30 depending on context length. A 20-turn session lands at **$1–$5 of LLM** usually dominating compute cost.
-
-A 50-PM team running ~4 hours/PM/business-day: **~$3,500/mo all-in** at steady state.
+Headroom for surprises: ~$22/mo before you hit the $100 mark. The biggest swing variable is **Bedrock token spend** — long context windows or talkative agents push it up fast. See §11 for the cost cap mechanism.
 
 ---
 
-## 11. Multi-tenancy model
+## 10. Deployment & repo layout
 
-For a single enterprise running this internally, *PM* is the tenant boundary. For a SaaS selling to multiple enterprises, add:
+Same monorepo as the reference spec, with these substitutions in `apps/api`:
 
-- **Per-customer AWS account** (sandbox VPC) provisioned via **Control Tower Account Factory**. Hardest isolation, simplest blast-radius story for sales/legal.
-- Or **per-customer EKS namespace + NetworkPolicy + ResourceQuota + dedicated nodepool with `customer=` taint**. Cheaper, weaker boundary.
+```
+apps/api/
+├─ handlers/
+│  ├─ http/                 # API Gateway HTTP API → Lambda
+│  ├─ ws/                   # API Gateway WebSocket → Lambda ($connect, $disconnect, $default)
+│  ├─ ecs-state-change/     # EventBridge → Lambda (task state hooks)
+│  └─ reaper/               # EventBridge Scheduler → Lambda (cron)
+├─ orchestrator/
+│  └─ ecs.ts                # RunTask, StopTask, DescribeTasks
+└─ proxy/
+   └─ alb-rules.ts          # CreateTargetGroup / CreateRule per sandbox
+```
 
-Cognito → Identity Center groups → IAM roles tagged with `customer_id`. ABAC throughout (`aws:PrincipalTag/customer_id` matches `aws:ResourceTag/customer_id`).
+IaC: **AWS CDK** (TypeScript). One stack per environment:
+
+```
+infra/cdk/
+├─ network-stack.ts         # VPC, subnets, security groups, DNS Firewall
+├─ data-stack.ts            # DynamoDB, S3, Secrets Manager, KMS aliases
+├─ api-stack.ts             # Cognito, API Gateway, Lambda fns
+├─ runtime-stack.ts         # ECS cluster, task definition, ECR, ALB, Route 53
+└─ observability-stack.ts   # Log groups, CloudWatch dashboards, alarms
+```
+
+CI: **GitHub Actions** with OIDC federation to an IAM role (no long-lived AWS keys in GitHub). One workflow does CDK diff on PR, CDK deploy on merge to main.
 
 ---
 
-## 12. Compliance evidence packages
+## 11. Cost guardrails (do these on day 1, not month 6)
 
-You need these regardless of variant if you're going through audit; this stack makes them trivial:
-
-- **SOC 2:** CloudTrail + Config conformance pack + IAM Access Analyzer reports + AWS Backup proof.
-- **HIPAA:** BAAs in place for AWS services used (Aurora, S3, KMS, Bedrock, ECS, EKS — verify Bedrock for the specific model you pick), encryption-at-rest CMKs, encryption-in-transit ALB + ACM.
-- **ISO 27001:** Security Hub conformance pack + asset inventory from Config.
-- **FedRAMP-aligned (not authorized):** Use GovCloud regions; substitute Cognito → IAM Identity Center.
-
-For the LLM piece specifically, regulated buyers will ask: *"Is our prompt or code used to train the model?"* Bedrock's standing answer is **no**. Have a one-pager ready.
+1. **AWS Budgets alarm** at $80/mo and $150/mo, both wired to email + Slack via SNS. Lambda also disables `bedrock:InvokeModel` at $200 by attaching a deny policy boundary. Cheap insurance against an agent loop chewing tokens.
+2. **Per-sandbox Bedrock cap.** Track total tokens spent per sandbox in DynamoDB. Hard-cap at e.g. 1M tokens/session; the agent loop refuses further tool turns past that.
+3. **Per-PM daily cap.** Same idea, in DynamoDB, reset by the reaper at UTC midnight.
+4. **Idle reaper at 30 min**, hard timeout at 4 h. A Fargate task left running for 24 h is $0.50; left for a month is $15. Fine, but only if it's intentional.
+5. **Tag everything** with `app=pm-sandbox`, `env=...`, `owner_uid=...`, `cost_center=...`. Cost Explorer attribution by tag is the only way you'll catch a runaway PM.
 
 ---
 
-## 13. Migration path back to the reference spec
+## 12. Production / compliance upgrade — what to add when you need it
 
-- Aurora → Neon Postgres: standard `pg_dump` → restore.
-- Bedrock → Anthropic API: swap one SDK call.
-- EKS + Kata → Fly Machines: rewrite the orchestrator wrapper (~200 LOC).
-- Cognito → Auth.js: SAML stays; reconfigure the IdP relying party.
-- CloudFront + Lambda@Edge → Cloudflare Worker + DO: same routing logic, different runtime.
+Don't build these on day 1. Add them when one of the triggers fires.
 
-The application code (agent loop, tool registry, web UI, agentd) is unchanged. Everything that differs is infrastructure and IAM — which is the right place for the differences to live.
+### Trigger: "We sold to a regulated customer" (SOC 2 / HIPAA / ISO)
+
+Add (in order, each independently useful):
+
+| Add | Replaces / augments | Approx. extra cost |
+|---|---|---|
+| **CloudTrail data events** + **GuardDuty** + **Security Hub** + **AWS Config** conformance pack | Audit baseline | ~$200/mo |
+| **Bedrock Guardrails** + **model-invocation logging** to S3 with **Object Lock** | LLM auditability | ~$10/mo + tokens |
+| **KMS customer-managed CMKs** (one per data class: db, secrets, jwt-signing, audit-logs) with rotation | AWS-managed keys | ~$5/mo |
+| **VM_JWT signed via KMS asymmetric (RSASSA-PSS)** instead of HS256 secret | No application secret can leak | included |
+| **AWS WAF** on CloudFront + ALB | Bot/L7 filtering | ~$10/mo + per-req |
+| **Inspector** for ECR image scanning + **Notary v2** signing enforced at deploy | Supply-chain evidence | ~$5/mo |
+| **AWS Backup** for DynamoDB PITR + S3 cross-region replication | RPO < 5 min | ~$5/mo |
+| **IAM Identity Center** with SAML federation, ABAC tags, quarterly access review via Access Analyzer | Cognito alone | $0 |
+
+Net extra: **~$240/mo**. You're now at **~$320/mo** with a clean SOC 2 evidence story.
+
+### Trigger: "We need stronger network isolation" (untrusted code, third-party tenants)
+
+Replace:
+
+| Replace | With | Why |
+|---|---|---|
+| Public-subnet Fargate + security groups | Private subnets + **NAT Gateway** (one AZ) + **VPC endpoints** for ECR, S3, Bedrock, Secrets Manager | No public IPs on sandboxes; AWS-service traffic stays on PrivateLink |
+| Route 53 DNS Firewall | **AWS Network Firewall** with Suricata-style rules + default-deny egress allowlist (npm, GitHub, ECR endpoint, Bedrock endpoint) | Real L4/L7 egress control |
+
+Net extra: NAT $35/mo + Network Firewall ~$400/mo + VPC endpoints ~$90/mo = **~$525/mo on top**. Now ~$845/mo.
+
+### Trigger: "We outgrew Fargate's cold start / 100 ALB rules per LB"
+
+Migrate:
+
+| Migrate from | To | Effort |
+|---|---|---|
+| Fargate one-task-per-sandbox | **EKS + Karpenter** with **Kata Containers (Firecracker)** runtime class on bare-metal nodes (`c7g.metal`/`m7g.metal`); pre-warm node pool keeps cold start < 5 s | ~2 weeks |
+| ALB host-rules | **ALB per shard** (id-hash to one of N ALBs) or **API Gateway HTTP API** with custom domain mapping per sandbox | ~3 days |
+| Single account | **Two-account topology** (control plane + sandbox runtime) via Control Tower Account Factory | ~1 week |
+| HS256 VM_JWT | KMS asymmetric (already in compliance pack) | done |
+
+Net extra at sustained scale: ~$1,200/mo. You're back at the original ~$1,800–$3,500/mo full-enterprise number.
+
+The application code (agent loop, tool registry, web UI, agentd) does not change across any of these upgrades. That's the whole point of the layered design.
+
+---
+
+## 13. What you give up at the lean tier (vs the full upgrade above)
+
+- **No multi-account blast-radius isolation.** A bug or compromise in the control plane has the same blast radius as the sandboxes. Acceptable for an internal tool with trusted PMs and trusted code; not acceptable for hostile multi-tenant.
+- **DNS-level egress filtering only.** Route 53 Resolver DNS Firewall blocks based on requested domain. A determined attacker inside a sandbox who exfils via direct-IP HTTPS to an unblocked CDN bypasses it. Network Firewall closes that gap; cost is $400/mo.
+- **Cognito + ALB OIDC auth, not full SSO with corporate IdP.** GitHub OAuth is the IdP for both PMs and the App. Fine for internal tools; corp-IT will want SAML federation eventually (Cognito supports it; just configure).
+- **Single AZ for ALB and DynamoDB on-demand is multi-AZ by default** — but Fargate tasks are placed wherever Fargate has capacity, no Multi-AZ spread guaranteed for a single task. If a PM's sandbox host has a bad hour, that sandbox is down for that hour. Acceptable for the use case.
+- **Audit story is "CloudTrail + CloudWatch logs"**, not the full SecHub/Config/GuardDuty bundle. Auditors will want the bundle eventually.
+- **No image signing enforcement.** ECR scans help, but nothing prevents a developer with deploy access from pushing an unsigned image. Add Notary v2 + Kyverno-equivalent admission when you need SLSA L3.
 
 ---
 
 ## 14. Footguns specific to this stack
 
-1. **Kata + Firecracker on EKS requires bare-metal nodes or specific instance families.** Use `c7g.metal` / `m7g.metal` for ARM, or `c6i.metal` / `m6i.metal` for x86. Karpenter must explicitly request these — they cost more than non-metal but are the only way Kata gets KVM access.
-2. **Bedrock cross-region inference profiles cost the same as the model's home region**, but capacity is much better. Always use them for production agent traffic.
-3. **AWS Network Firewall is ~$400/mo minimum** even idle. If that's a problem, use **VPC route-table-based egress** with a NAT into a small Squid proxy on EC2 — uglier, ~$30/mo, weaker controls.
-4. **API Gateway WebSocket has a hard 10-min idle timeout and a 2-h max connection.** Build heartbeat + reconnect into the browser client and `agentd` from day one.
-5. **EKS upgrades break Kata RuntimeClass installs unless you pin the operator.** Treat the Kata operator as a first-class upgrade gate; test in a staging cluster.
-6. **Bedrock Guardrails latency adds ~200–600 ms per call.** If your agent is chatty (many small tool-calls), batch results back to the LLM in fewer turns.
-7. **Cross-account log aggregation is annoying.** Use **CloudWatch Logs cross-account sharing** (organization-level) so the security account owns the logs from day one.
-8. **Image signing breaks any "quick fix" deploy.** That's the point — but make sure your incident runbook has an emergency-deploy path through CodePipeline (not `kubectl set image`).
+1. **ALB listener-rule limit (100 default).** A reaper that fails silently leaks rules and target groups. Add a CloudWatch alarm on `ELB rule count > 80` and a dead-letter queue on the cleanup Lambda.
+2. **Fargate cold start is bursty.** During a "all PMs start at 9 AM" spike, ECS RunTask can rate-limit. Pre-warm by keeping one task running per region during business hours if you see this — costs ~$15/mo extra.
+3. **API Gateway WebSocket idle timeout = 10 min, max conn = 2 h.** Build heartbeat + reconnect into both the browser client and `agentd` from day one. Same as the reference spec footgun, but doubly important here because you have no other transport.
+4. **DynamoDB single-table design is unforgiving.** Get the access patterns right before you have data — migrations are doable but painful. Sketch every query before you provision the table.
+5. **Public-subnet Fargate + public IPv4 will cost more than you expect** (~$0.005/h per task = $3.60/mo if always-on). Confirm the reaper actually stops tasks; an orphaned task is the most common surprise on the bill.
+6. **Bedrock model availability differs by region.** Cross-region inference profiles solve this for inference; double-check that Guardrails (when you add them) are available in your home region too.
+7. **Vite `server.allowedHosts`.** Same as the reference spec — agent must start dev with `--allowed-hosts .preview.example.com` or set `server.allowedHosts: true`. Bake into the system prompt and into a `start_dev_server` post-step.
+8. **CDK + ALB rules drift.** If a Lambda creates rules outside CDK's purview, `cdk diff` will try to delete them. Either tag the Lambda-created rules and exclude by tag in your CDK construct, or move ALB rule management into a CDK custom resource that reconciles from DynamoDB.
 
 ---
 
@@ -337,6 +384,7 @@ The application code (agent loop, tool registry, web UI, agentd) is unchanged. E
 | If you... | Pick |
 |---|---|
 | Are one person prototyping | **Hobbyist** (`pm-sandbox-hobbyist.md`) |
-| Are a startup serving up to ~50 PMs across <10 customers | **Reference** (`pm-sandbox-spec.md`) |
-| Sell to regulated enterprises, or your own company is regulated | **This document** |
-| Need on-prem / air-gapped | This document, swapping Bedrock for vLLM on EKS, EKS for OpenShift, Cognito for Keycloak. The shape of the architecture survives. |
+| Are a startup serving up to ~50 PMs across <10 customers, prefer Fly + Cloudflare | **Reference** (`pm-sandbox-spec.md`) |
+| Want all-AWS, ~10 PMs, light/internal use, <$100/mo budget | **Lean tier — §1–§11 of this document** |
+| Sell to regulated enterprises, or your own company is regulated | **Lean + §12 compliance upgrade** of this document |
+| Need on-prem / air-gapped | Lean + compliance upgrade in **GovCloud**, swap Bedrock for self-hosted vLLM on EKS (still microVM-isolated via Kata) |

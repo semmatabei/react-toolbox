@@ -7,7 +7,7 @@
 **Variants:** this is the **reference** stack (small SaaS / startup scale). Two siblings exist:
 
 - [`pm-sandbox-hobbyist.md`](./pm-sandbox-hobbyist.md) — $0/mo, Cloudflare free tier + opencode + Zen free model, single Oracle/Hetzner VPS.
-- [`pm-sandbox-enterprise-aws.md`](./pm-sandbox-enterprise-aws.md) — full AWS, Bedrock, EKS + Kata/Firecracker isolation, SSO, audit-ready.
+- [`pm-sandbox-enterprise-aws.md`](./pm-sandbox-enterprise-aws.md) — all-AWS. Lean tier ~$80/mo for ~430 sandbox-h/mo (Fargate + Bedrock + DynamoDB + Lambda + ALB), with a documented upgrade path to ~$3,500/mo full-compliance (EKS + Kata, Network Firewall, two-account topology, SSO, full audit).
 
 ---
 
